@@ -51,10 +51,13 @@ cp .env.example .env
 ### Option A: Running the Complete Full-Stack Web Application (Recommended for Instant Evaluation)
 
 ```bash
-# 1. Install frontend dependencies
+# 1. Clone repository and navigate to root
+cd your-submission
+
+# 2. Install frontend dependencies
 npm install
 
-# 2. Start the dev server (Vite on port 3000)
+# 3. Start the dev server (Vite on port 3000)
 npm run dev
 ```
 
