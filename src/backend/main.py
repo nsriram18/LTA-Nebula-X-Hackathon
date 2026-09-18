@@ -7,6 +7,12 @@ Firestore database integration, and the 45-minute proactive engine background wo
 import os
 from fastapi import FastAPI, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import find_dotenv, load_dotenv
+
+# Load the nearest ignored .env file for local development. Cloud Run injects
+# environment variables directly, so this is a no-op in production.
+load_dotenv(find_dotenv(usecwd=True))
+
 from models.schemas import (
     CommuterProfile,
     ProactiveNotificationPayload,

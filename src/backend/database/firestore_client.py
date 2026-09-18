@@ -26,8 +26,8 @@ class FirestoreDB:
         database_id = os.getenv("FIRESTORE_DATABASE_ID", "(default)")
 
         try:
-            # Attempts initialization using ambient application default credentials (ADC)
-            # or GCP_SERVICE_ACCOUNT_JSON if provided
+            # Uses ambient Application Default Credentials. In Cloud Run these
+            # come from the service's attached runtime service account.
             if project_id:
                 self.client = firestore.Client(project=project_id, database=database_id)
                 logger.info(f"Connected to Google Cloud Firestore [Project: {project_id}]")

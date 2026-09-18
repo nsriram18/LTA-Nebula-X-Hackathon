@@ -39,7 +39,13 @@ cp .env.example .env
 | `ONEMAP_API_TOKEN` | Bearer token for OneMap Routing | Generated from OneMap account |
 | `GCP_PROJECT_ID` | Google Cloud project ID for Firestore | GCP Cloud Console |
 | `FIRESTORE_DATABASE_ID` | Firestore database ID (defaults to `(default)`) | GCP Firestore |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP Service Account JSON keyfile | GCP IAM Service Accounts |
+
+`LTA_DATAMALL_ACCOUNT_KEY`, `ONEMAP_EMAIL`, `ONEMAP_PASSWORD`, and
+`ONEMAP_API_TOKEN` are backend-only secrets. Do not prefix them with `VITE_` or
+otherwise include them in the browser build. In Cloud Run, inject them from
+Google Secret Manager. Cloud Run authenticates to Firestore using its attached
+service account through Application Default Credentials; do not deploy a
+service-account JSON key.
 
 > **Graceful Offline & Evaluation Fallback:**  
 > If external API keys are not supplied, ClearPath seamlessly initializes with resilient verified offline baseline datasets and high-performance in-memory persistence. Judges can run and evaluate all features completely offline without spending any money or registering for external keys.
@@ -132,3 +138,25 @@ Follow this one real journey to test ClearPath end-to-end for **Arjun**:
 - **Backend (Google Cloud Run)**: The provided `Dockerfile` builds a production-ready containerized service exposing port 8080 with Uvicorn worker threads.
 - **Frontend (Firebase Hosting)**: The provided `firebase.json` defines SPA client routing rewrites to `/index.html` and aggressive caching headers for static assets while keeping the Service Worker (`/sw.js`) fresh.
 - **Database (Google Cloud Firestore)**: Stores commuter profiles, routines, notification preferences, and offline fallback route snapshots.
+
+### Current Google Cloud Backend
+
+- **Project:** `qwiklabs-gcp-02-e3a0cea27f91`
+- **Region:** `us-central1`
+- **Cloud Run service:** `lta-nebula-x-hackathon`
+- **API base URL:** `https://lta-nebula-x-hackathon-314751883323.us-central1.run.app`
+- **Health check:** `https://lta-nebula-x-hackathon-314751883323.us-central1.run.app/api/health`
+
+The Cloud Run revision uses the dedicated
+`lta-nebula@qwiklabs-gcp-02-e3a0cea27f91.iam.gserviceaccount.com` runtime
+identity and the `(default)` Firestore database in `us-central1`. LTA and
+OneMap values must be supplied through Secret Manager; they are never included
+in the source upload or browser bundle.
+
+### Continuous Deployment
+
+`cloudbuild.yaml` defines the production backend pipeline. A push to `main`
+builds the root `Dockerfile`, publishes the image to Artifact Registry, and
+deploys it to the `lta-nebula-x-hackathon` Cloud Run service in `us-central1`.
+The deployment uses the dedicated runtime identity above and preserves secrets
+managed by Cloud Run and Secret Manager.
