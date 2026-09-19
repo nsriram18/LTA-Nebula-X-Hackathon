@@ -8,6 +8,8 @@ import { OfflineRouteCache, RouteOption, CommuterProfile } from '../types';
 
 const STORAGE_KEY = 'clearpath_active_journey';
 const PROFILE_KEY = 'clearpath_user_profile';
+const ONBOARDING_KEY = 'clearpath_onboarding_complete';
+const TOUR_KEY = 'clearpath_tour_complete';
 
 export const DEFAULT_ARJUN_PROFILE: CommuterProfile = {
   id: 'commuter-arjun-01',
@@ -30,6 +32,22 @@ export const DEFAULT_ARJUN_PROFILE: CommuterProfile = {
 };
 
 class OfflineStorageManager {
+  public hasCompletedOnboarding(): boolean {
+    return localStorage.getItem(ONBOARDING_KEY) === 'true';
+  }
+
+  public completeOnboarding(): void {
+    localStorage.setItem(ONBOARDING_KEY, 'true');
+  }
+
+  public hasCompletedTour(): boolean {
+    return localStorage.getItem(TOUR_KEY) === 'true';
+  }
+
+  public completeTour(): void {
+    localStorage.setItem(TOUR_KEY, 'true');
+  }
+
   /**
    * Cache current active journey to localStorage
    */

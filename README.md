@@ -107,23 +107,24 @@ docker run -p 8080:8080 -e PORT=8080 clearpath-backend
 
 ## 5. What to Click: Step-by-Step Judge Journey
 
-Follow this one real journey to test ClearPath end-to-end for **Arjun**:
+Follow this journey to test ClearPath end-to-end:
 
-1. **Launch App**: Open `http://localhost:3000`. The map immediately loads on the Punggol-to-one-north corridor with OpenStreetMap base tiles and the visible attribution `"© OpenStreetMap contributors"`.
-2. **Observe the configured journey**:
+1. **Launch App**: Open `http://localhost:3000`. First-time visitors receive a short product introduction and can either set up a commute or explore the sample journey. Three optional coach marks introduce the journey header, expandable route card, and Demo Lab.
+2. **Observe the map-first journey**:
    - The initial profile's scheduled commute is **08:30 AM**; origin, destination, coordinates, time, and mode are editable.
-   - Route geometry, distance, and duration come from OneMap when available. Expand the bottom sheet to see **Metric evidence** for every displayed route metric.
+   - The map occupies most of the mobile screen. Tap **View journey** to reveal alternatives and directions, or expand fully for **Sources & calculations**.
+   - Tap **Layers** to enable the optional sheltered-walkway, cycling-path, and reference-station overlays.
 3. **Simulate Train Disruption Replay**:
-   - In the top toolbar, tap **"LRT Fault Replay"**.
+   - Open **Demo Lab**, then tap **"Train disruption replay"**.
    - This is visibly labeled **SIMULATION**. It exercises nested `AffectedSegments`, `FreeMRTShuttle`, and `FreePublicBus` handling without claiming a current disruption.
 4. **Simulate Torrential Rain on Cycling Leg**:
-   - Tap **"Torrential Rain"** to activate a clearly labeled **SIMULATION** value of **18.4 mm/h** near the configured origin.
+   - In **Demo Lab**, tap **"Heavy rain"** to activate a clearly labeled **SIMULATION** value of **18.4 mm/h** near the configured origin.
    - No clearance time, shelter percentage, bus load, or road-friction value is asserted without evidence.
 5. **Simulate Underground / Loss of Cellular Signal**:
-   - In the bottom sheet, tap **"Simulate Tunnel"** (or switch your phone to Airplane Mode).
+   - In **Demo Lab**, tap **"Simulate tunnel"** (or switch your phone to Airplane Mode).
    - ClearPath loads the saved active journey, displays the cache timestamp, and labels its displayed metrics **CACHED**.
 6. **Test "Beyond the Brief": Motorcycle Mode (Yamaha XSR155)**:
-   - In the top toolbar or user profile, tap **"Motorcycle Mode"**.
+   - In **Demo Lab** or journey settings, enable **"Motorcycle route"**.
    - ClearPath requests a motorcycle route from OneMap. It does not invent speed bands, clutch events, fatigue, time saved, or grip telemetry when those measurements are absent.
 
 ---

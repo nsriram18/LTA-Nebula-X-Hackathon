@@ -52,7 +52,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               <User className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-white">Commuter Persona Settings</h3>
+              <h3 className="font-bold text-base text-white">Journey settings</h3>
               <p className="text-xs text-slate-400 truncate max-w-[250px]">{formData.homeAddress} → {formData.officeAddress}</p>
             </div>
           </div>
@@ -69,7 +69,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         <div className="space-y-3 text-xs">
           <div className="space-y-2">
             <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-cyan-400" /> Route Parameters
+              <MapPin className="w-3.5 h-3.5 text-cyan-400" /> Your commute
             </div>
             {([
               ['Origin', 'homeAddress', 'homeCoords'],
@@ -84,7 +84,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   aria-label={`${label} address`}
                   className="w-full bg-slate-950/70 border border-slate-700 rounded-lg px-2.5 py-2 text-white focus:outline-none focus:border-cyan-500"
                 />
-                <div className="grid grid-cols-2 gap-2">
+                <details className="rounded-lg border border-slate-700/60 bg-slate-950/30 p-2">
+                  <summary className="cursor-pointer text-[10px] font-semibold text-slate-400">Precise map coordinates</summary>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
                   {(['lat', 'lng'] as const).map((axis) => (
                     <label key={axis} className="text-[10px] text-slate-400 uppercase">
                       {axis === 'lat' ? 'Latitude' : 'Longitude'}
@@ -106,13 +108,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                       />
                     </label>
                   ))}
-                </div>
+                  </div>
+                </details>
               </div>
             ))}
           </div>
 
           <div>
-            <label className="text-slate-300 font-semibold mb-1 block">Scheduled Departure Time</label>
+            <label className="text-slate-300 font-semibold mb-1 block">When do you normally leave?</label>
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <Clock className="w-4 h-4 text-cyan-400 absolute left-3 top-2.5" />
@@ -124,7 +127,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 />
               </div>
               <label className="bg-slate-800 px-2 py-1 rounded-xl border border-slate-700 text-slate-400 text-[10px] uppercase">
-                Flex (min)
+                Flexible time
                 <input
                   type="number"
                   min="0"
@@ -136,13 +139,13 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               </label>
             </div>
             <p className="text-[10px] text-slate-500 mt-1">
-              Proactive check triggers {formData.notificationLeadTimeMinutes} minutes prior (at {proactiveTime})
+              ClearPath checks {formData.notificationLeadTimeMinutes} minutes before departure, at {proactiveTime}. <span className="font-bold text-slate-400">Calculated from your settings.</span>
             </p>
           </div>
 
           {/* Preferences Toggles */}
           <div className="space-y-2 pt-1 border-t border-slate-800">
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Preferences</div>
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Travel preferences</div>
 
             <label className="block p-2.5 rounded-xl bg-slate-800/60 border border-slate-700/60">
               <span className="font-medium text-slate-200 block mb-1.5">Preferred Travel Mode</span>
@@ -193,7 +196,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/60 border border-slate-700/60 cursor-pointer min-h-[44px]">
               <div className="flex items-center gap-2">
                 <Shield className="w-4 h-4 text-emerald-400" />
-                <span className="font-medium text-slate-200">Prioritize CoveredLinkWays (Shelter)</span>
+                <span className="font-medium text-slate-200">Prefer sheltered walking</span>
               </div>
               <input
                 type="checkbox"
@@ -208,8 +211,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               <div className="flex items-center gap-2">
                 <Zap className="w-4 h-4 text-amber-400" />
                 <div>
-                  <span className="font-medium text-slate-200">Motorcycle Mode (Yamaha XSR155)</span>
-                  <div className="text-[10px] text-slate-400">Avoid stop-and-go clutch strain on PIE</div>
+                  <span className="font-medium text-slate-200">Use motorcycle routing</span>
+                  <div className="text-[10px] text-slate-400">Plans a OneMap motorcycle journey</div>
                 </div>
               </div>
               <input

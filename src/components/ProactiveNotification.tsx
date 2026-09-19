@@ -36,7 +36,7 @@ export const ProactiveNotification: React.FC<ProactiveNotificationProps> = ({
   return (
     <div
       id="proactive-notification-banner"
-      className="fixed top-3 inset-x-3 sm:max-w-md sm:mx-auto z-[500] bg-slate-900/95 backdrop-blur-md rounded-2xl border border-slate-700/80 shadow-2xl p-3.5 text-slate-100 transition-all duration-300 animate-in fade-in slide-in-from-top-4"
+      className="fixed top-20 inset-x-3 sm:max-w-md sm:mx-auto z-[500] bg-slate-900/95 backdrop-blur-md rounded-2xl border border-slate-700/80 shadow-2xl p-3.5 text-slate-100 transition-all duration-300 animate-in fade-in slide-in-from-top-4"
     >
       <div className="flex items-start gap-3">
         {icon}

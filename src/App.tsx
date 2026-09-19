@@ -10,7 +10,8 @@ import { BottomSheet } from './components/BottomSheet';
 import { ProactiveNotification } from './components/ProactiveNotification';
 import { ScenarioControls } from './components/ScenarioControls';
 import { ProfileModal } from './components/ProfileModal';
-import { MotorcycleModeSheet } from './components/MotorcycleModeSheet';
+import { WelcomeFlow } from './components/WelcomeFlow';
+import { FirstRunTour } from './components/FirstRunTour';
 import { proactiveEngine } from './services/proactiveEngine';
 import { offlineStorage, DEFAULT_ARJUN_PROFILE } from './services/offlineStorage';
 import { RouteOption, RouteStep, CommuterProfile, ProactiveNotificationPayload, TrafficSpeedBand } from './types';
@@ -29,8 +30,9 @@ export default function App() {
   const [isDisruptionReplay, setIsDisruptionReplay] = useState<boolean>(false);
   const [isHeavyRain, setIsHeavyRain] = useState<boolean>(false);
   const [isHighCrowd, setIsHighCrowd] = useState<boolean>(false);
-  const [showShelterLayer, setShowShelterLayer] = useState<boolean>(true);
-  const [showCyclingLayer, setShowCyclingLayer] = useState<boolean>(true);
+  const [showShelterLayer, setShowShelterLayer] = useState<boolean>(false);
+  const [showCyclingLayer, setShowCyclingLayer] = useState<boolean>(false);
+  const [showStations, setShowStations] = useState<boolean>(false);
   const [isUndergroundOffline, setIsUndergroundOffline] = useState<boolean>(false);
   const [offlineCachedAt, setOfflineCachedAt] = useState<string>('08:30 AM');
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
@@ -38,6 +40,9 @@ export default function App() {
   const [speedBands] = useState<TrafficSpeedBand[]>([]);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('syncing');
   const [apiError, setApiError] = useState<string | null>(null);
+  const [isWelcomeOpen, setIsWelcomeOpen] = useState(() => !offlineStorage.hasCompletedOnboarding());
+  const [showFirstRunTour, setShowFirstRunTour] = useState(false);
+  const [tourAfterProfile, setTourAfterProfile] = useState(false);
 
   // Register service worker for offline underground caching
   useEffect(() => {
@@ -232,27 +237,29 @@ export default function App() {
         onToggleHighCrowd={handleToggleHighCrowd}
         isMotorcycleMode={profile.motorcycleMode}
         onToggleMotorcycleMode={handleToggleMotorcycleMode}
-        showShelterLayer={showShelterLayer}
-        onToggleShelterLayer={() => setShowShelterLayer(!showShelterLayer)}
-        showCyclingLayer={showCyclingLayer}
-        onToggleCyclingLayer={() => setShowCyclingLayer(!showCyclingLayer)}
         onTriggerProactiveCheck={() => void runEvaluation()}
+        onToggleUndergroundOffline={() => void handleToggleUndergroundOffline()}
+        isUndergroundOffline={isUndergroundOffline}
         isLoading={isLoading}
       />
 
       {apiError && (
-        <div className="fixed top-44 inset-x-3 sm:max-w-md sm:mx-auto z-[430] rounded-xl border border-amber-500/40 bg-amber-950/90 px-3 py-2 text-xs text-amber-100 shadow-lg">
+        <div className="fixed top-20 inset-x-3 sm:max-w-md sm:mx-auto z-[430] rounded-xl border border-amber-500/40 bg-amber-950/90 px-3 py-2 text-xs text-amber-100 shadow-lg">
           {apiError}
         </div>
       )}
 
       {/* Full-Bleed Leaflet Map with visible OSM attribution */}
-      <div className="absolute inset-0 pt-14 pb-36 z-0">
+      <div className="absolute inset-0 pt-16 pb-[148px] z-0">
         <MapComponent
           activeRoute={activeRoute}
           selectedStep={selectedStep}
           showShelterLayer={showShelterLayer}
           showCyclingLayer={showCyclingLayer}
+          showStations={showStations}
+          onToggleShelterLayer={() => setShowShelterLayer(!showShelterLayer)}
+          onToggleCyclingLayer={() => setShowCyclingLayer(!showCyclingLayer)}
+          onToggleStations={() => setShowStations(!showStations)}
           isRaining={isHeavyRain}
           isDisrupted={isDisruptionReplay}
           isMotorcycleMode={profile.motorcycleMode}
@@ -275,17 +282,40 @@ export default function App() {
         offlineCachedAt={offlineCachedAt}
         isRaining={isHeavyRain}
         isDisrupted={isDisruptionReplay}
-        onToggleUndergroundOffline={handleToggleUndergroundOffline}
       />
 
       {/* Profile / Commuter Persona Settings Modal */}
       <ProfileModal
         isOpen={isProfileOpen}
-        onClose={() => setIsProfileOpen(false)}
+        onClose={() => {
+          setIsProfileOpen(false);
+          if (tourAfterProfile && !offlineStorage.hasCompletedTour()) {
+            setTourAfterProfile(false);
+            setShowFirstRunTour(true);
+          }
+        }}
         profile={profile}
         onSaveProfile={handleSaveProfile}
         syncStatus={syncStatus}
       />
+
+      {isWelcomeOpen && <WelcomeFlow
+        onSetup={() => {
+          offlineStorage.completeOnboarding();
+          setIsWelcomeOpen(false);
+          setTourAfterProfile(true);
+          setIsProfileOpen(true);
+        }}
+        onExplore={() => {
+          offlineStorage.completeOnboarding();
+          setIsWelcomeOpen(false);
+          if (!offlineStorage.hasCompletedTour()) setShowFirstRunTour(true);
+        }}
+      />}
+      {showFirstRunTour && <FirstRunTour onComplete={() => {
+        offlineStorage.completeTour();
+        setShowFirstRunTour(false);
+      }} />}
     </div>
   );
 }

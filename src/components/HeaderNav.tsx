@@ -1,5 +1,5 @@
 import React from 'react';
-import { Compass, User, CloudSun, CloudRain, WifiOff } from 'lucide-react';
+import { ChevronRight, CloudRain, Compass, User, WifiOff } from 'lucide-react';
 import { CommuterProfile } from '../types';
 
 interface HeaderNavProps {
@@ -9,68 +9,29 @@ interface HeaderNavProps {
   isUnderground: boolean;
 }
 
-export const HeaderNav: React.FC<HeaderNavProps> = ({
-  profile,
-  onOpenProfile,
-  isRaining,
-  isUnderground,
-}) => {
-  return (
-    <header
-      id="app-header-nav"
-      className="fixed top-0 inset-x-0 z-[410] h-14 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-3.5 flex items-center justify-between select-none"
-    >
-      <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-md shadow-cyan-500/20">
-          <Compass className="w-5 h-5" />
-        </div>
-        <div>
-          <div className="flex items-center gap-1.5">
-            <h1 className="text-sm font-black tracking-tight text-white leading-none">
-              ClearPath
-            </h1>
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-              PS2
-            </span>
-          </div>
-          <p className="text-[10px] text-slate-400 font-medium leading-tight mt-0.5">
-            {profile.homeAddress} → {profile.officeAddress}
-          </p>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2">
-        {/* Real-time Condition Pill */}
-        <div className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg bg-slate-800/90 border border-slate-700/80 text-slate-300">
-          {isUnderground ? (
-            <>
-              <WifiOff className="w-3.5 h-3.5 text-amber-400" />
-              <span className="text-amber-300 font-medium">Underground</span>
-            </>
-          ) : isRaining ? (
-            <>
-              <CloudRain className="w-3.5 h-3.5 text-blue-400 animate-pulse" />
-              <span className="text-blue-300 font-medium">SIMULATION: Rain</span>
-            </>
-          ) : (
-            <>
-              <CloudSun className="w-3.5 h-3.5 text-amber-400" />
-              <span>No rain scenario</span>
-            </>
-          )}
-        </div>
-
-        {/* Persona Profile Button (Touch target >= 44x44px) */}
-        <button
-          id="profile-toggle-btn"
-          onClick={onOpenProfile}
-          className="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 flex items-center justify-center transition-all touch-manipulation active:scale-95"
-          aria-label="Open commuter profile"
-          title="Arjun Commuter Profile"
-        >
-          <User className="w-4 h-4 text-cyan-400" />
-        </button>
-      </div>
-    </header>
-  );
+const shortPlace = (address: string) => {
+  const first = address.split(',')[0]?.trim() || address;
+  return first.length > 20 ? `${first.slice(0, 18)}…` : first;
 };
+
+export const HeaderNav: React.FC<HeaderNavProps> = ({ profile, onOpenProfile, isRaining, isUnderground }) => (
+  <header id="app-header-nav" className="fixed inset-x-0 top-0 z-[410] flex h-16 items-center gap-2 border-b border-slate-800 bg-slate-900/95 px-3 backdrop-blur-md">
+    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/20">
+      <Compass className="h-5 w-5" />
+    </div>
+    <button onClick={onOpenProfile} className="min-w-0 flex-1 rounded-xl px-1 py-1 text-left" aria-label="Edit commute">
+      <div className="flex items-center gap-1 text-sm font-black text-white">ClearPath <span className="rounded bg-cyan-500/15 px-1.5 py-0.5 text-[8px] text-cyan-300">PS2</span></div>
+      <div className="mt-0.5 flex items-center gap-1 truncate text-[10px] font-medium text-slate-400">
+        <span className="truncate">{shortPlace(profile.homeAddress)}</span><ChevronRight className="h-3 w-3 shrink-0"/><span className="truncate">{shortPlace(profile.officeAddress)}</span><span className="ml-1 shrink-0 text-cyan-300">{profile.scheduledDepartureTime}</span>
+      </div>
+    </button>
+    {(isUnderground || isRaining) && (
+      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${isUnderground ? 'border-amber-500/40 bg-amber-500/15 text-amber-300' : 'border-blue-500/40 bg-blue-500/15 text-blue-300'}`} title={isUnderground ? 'Cached journey' : 'Rain simulation active'}>
+        {isUnderground ? <WifiOff className="h-4 w-4"/> : <CloudRain className="h-4 w-4"/>}
+      </div>
+    )}
+    <button id="profile-toggle-btn" onClick={onOpenProfile} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-slate-200" aria-label="Open journey settings">
+      <User className="h-4 w-4 text-cyan-400" />
+    </button>
+  </header>
+);

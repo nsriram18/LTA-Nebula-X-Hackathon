@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
+import { Bike, Layers, LocateFixed, Shield, TrainFront, X } from 'lucide-react';
 import { CommuterProfile, RouteOption, RouteStep, TrafficSpeedBand } from '../types';
 import { COVERED_LINKWAYS, CYCLING_PATHS, STATIONS } from '../data/mockGeospatial';
 
@@ -8,6 +9,10 @@ interface MapComponentProps {
   selectedStep: RouteStep | null;
   showShelterLayer: boolean;
   showCyclingLayer: boolean;
+  showStations: boolean;
+  onToggleShelterLayer: () => void;
+  onToggleCyclingLayer: () => void;
+  onToggleStations: () => void;
   isRaining: boolean;
   isDisrupted: boolean;
   isMotorcycleMode: boolean;
@@ -21,12 +26,17 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   selectedStep,
   showShelterLayer,
   showCyclingLayer,
+  showStations,
+  onToggleShelterLayer,
+  onToggleCyclingLayer,
+  onToggleStations,
   isRaining,
   isDisrupted,
   isMotorcycleMode,
   speedBands = [],
   profile,
 }) => {
+  const [showLayerMenu, setShowLayerMenu] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const layerGroupRef = useRef<L.LayerGroup | null>(null);
@@ -49,8 +59,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       subdomains: ['a', 'b', 'c'],
     }).addTo(map);
 
-    // Zoom control in top-right for mobile ergonomics
-    L.control.zoom({ position: 'topright' }).addTo(map);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
 
     const layerGroup = L.layerGroup().addTo(map);
     layerGroupRef.current = layerGroup;
@@ -66,6 +75,15 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       mapInstanceRef.current = null;
     };
   }, []);
+
+  const fitActiveRoute = useCallback(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !activeRoute) return;
+    const points = activeRoute.steps.flatMap((step) => step.coordinates);
+    if (points.length > 1) {
+      map.fitBounds(L.latLngBounds(points.map(([lat, lng]) => [lat, lng])), { padding: [48, 48], maxZoom: 14 });
+    }
+  }, [activeRoute]);
 
   // Update Layers whenever state changes
   useEffect(() => {
@@ -219,7 +237,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       .addTo(layerGroup);
 
     // Reference station markers. No crowd value is inferred for static markers.
-    Object.values(STATIONS).forEach((stn) => {
+    if (showStations) Object.values(STATIONS).forEach((stn) => {
       let badgeColor = 'bg-slate-600';
       let badgeText = 'REF';
 
@@ -246,12 +264,33 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         .bindPopup(`<b>${stn.name} (${stn.code})</b><br/>Line: ${stn.line}<br/>REFERENCE station marker${isDisrupted ? '<br/>SIMULATION disruption overlay' : ''}`)
         .addTo(layerGroup);
     });
-  }, [activeRoute, selectedStep, showShelterLayer, showCyclingLayer, isRaining, isDisrupted, isMotorcycleMode, speedBands, profile]);
+  }, [activeRoute, selectedStep, showShelterLayer, showCyclingLayer, showStations, isRaining, isDisrupted, isMotorcycleMode, speedBands, profile]);
 
   return (
     <div className="relative w-full h-full">
       {/* Map Canvas */}
       <div id="clearpath-map" ref={mapContainerRef} className="w-full h-full z-0 bg-slate-950" />
+
+      <div className="absolute right-3 top-3 z-[400] flex flex-col items-end gap-2">
+        <button onClick={() => setShowLayerMenu(!showLayerMenu)} className="flex h-10 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/90 px-3 text-xs font-bold text-slate-100 shadow-lg backdrop-blur-md"><Layers className="h-4 w-4 text-cyan-400"/>Layers</button>
+        {showLayerMenu && (
+          <div className="w-56 rounded-2xl border border-slate-700 bg-slate-900/95 p-3 shadow-2xl backdrop-blur-md">
+            <div className="mb-2 flex items-center justify-between"><span className="text-xs font-bold text-white">Map layers</span><button onClick={() => setShowLayerMenu(false)} className="p-1 text-slate-400"><X className="h-4 w-4"/></button></div>
+            {[
+              { label: 'Sheltered walkways', active: showShelterLayer, onClick: onToggleShelterLayer, icon: Shield, color: 'text-emerald-400' },
+              { label: 'Cycling paths', active: showCyclingLayer, onClick: onToggleCyclingLayer, icon: Bike, color: 'text-cyan-400' },
+              { label: 'Reference stations', active: showStations, onClick: onToggleStations, icon: TrainFront, color: 'text-pink-400' },
+            ].map(({ label, active, onClick, icon: Icon, color }) => (
+              <button key={label} onClick={onClick} className="flex min-h-10 w-full items-center justify-between rounded-xl px-2 text-left text-xs text-slate-300 hover:bg-slate-800">
+                <span className="flex items-center gap-2"><Icon className={`h-4 w-4 ${color}`}/>{label}</span>
+                <span className={`h-5 w-9 rounded-full p-0.5 ${active ? 'bg-cyan-500' : 'bg-slate-700'}`}><span className={`block h-4 w-4 rounded-full bg-white transition-transform ${active ? 'translate-x-4' : ''}`}/></span>
+              </button>
+            ))}
+            <p className="mt-2 border-t border-slate-800 pt-2 text-[9px] leading-relaxed text-slate-500">These are reference overlays, not live coverage.</p>
+          </div>
+        )}
+        <button onClick={fitActiveRoute} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700 bg-slate-900/90 text-slate-200 shadow-lg" aria-label="Recenter active route"><LocateFixed className="h-4 w-4"/></button>
+      </div>
 
       {/* Mandatory Exact Attribution as required by PS2 Section 2.3 */}
       <div
@@ -261,31 +300,6 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         © OpenStreetMap contributors
       </div>
 
-      {/* Floating Map Legend Pill */}
-      <div className="absolute top-3 left-3 z-[400] bg-slate-900/90 backdrop-blur-md px-3 py-2 rounded-xl border border-slate-700/80 shadow-lg text-xs space-y-1.5 pointer-events-auto max-w-[220px]">
-        <div className="flex items-center justify-between text-[11px] font-semibold text-slate-300">
-          <span>Active Route</span>
-          <span className="text-cyan-400 font-mono truncate max-w-[130px]">{profile.homeAddress} → {profile.officeAddress}</span>
-        </div>
-        <div className="grid grid-cols-2 gap-1.5 text-[10px] text-slate-400">
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-1 bg-cyan-400 rounded-full"></span>
-            <span>Cycling mode</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-1 bg-pink-500 rounded-full"></span>
-            <span>MRT / LRT</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-1 bg-emerald-400 border-b border-dashed border-emerald-300"></span>
-            <span>Sheltered Link</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-1 bg-amber-400 rounded-full"></span>
-            <span>Mitigation Bus</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
