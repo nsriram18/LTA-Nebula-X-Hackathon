@@ -135,16 +135,16 @@ Follow this one real journey to test ClearPath end-to-end for **Arjun**:
 
 ## 6. Deployment Architecture
 
-- **Backend (Google Cloud Run)**: The provided `Dockerfile` builds a production-ready containerized service exposing port 8080 with Uvicorn worker threads.
-- **Frontend (Firebase Hosting)**: The provided `firebase.json` defines SPA client routing rewrites to `/index.html` and aggressive caching headers for static assets while keeping the Service Worker (`/sw.js`) fresh.
+- **Application (Google Cloud Run)**: The multi-stage `Dockerfile` builds the React frontend and packages it with the FastAPI backend in one production container on port 8080.
+- **Frontend delivery**: FastAPI serves the compiled SPA and static assets from the same Cloud Run origin as `/api/*`, eliminating cross-origin configuration for the production application.
 - **Database (Google Cloud Firestore)**: Stores commuter profiles, routines, notification preferences, and offline fallback route snapshots.
 
-### Current Google Cloud Backend
+### Current Google Cloud Application
 
 - **Project:** `qwiklabs-gcp-02-e3a0cea27f91`
 - **Region:** `us-central1`
 - **Cloud Run service:** `lta-nebula-x-hackathon`
-- **API base URL:** `https://lta-nebula-x-hackathon-314751883323.us-central1.run.app`
+- **Application URL:** `https://lta-nebula-x-hackathon-314751883323.us-central1.run.app`
 - **Health check:** `https://lta-nebula-x-hackathon-314751883323.us-central1.run.app/api/health`
 
 The Cloud Run revision uses the dedicated
@@ -155,10 +155,10 @@ in the source upload or browser bundle.
 
 ### Frontend-to-Backend Integration
 
-The React application reads the public `VITE_API_BASE_URL` value from
-`.env.production` and sends all live LTA, weather, profile, offline-cache, and
-proactive-evaluation requests to FastAPI. DataMall and OneMap credentials stay
-inside Cloud Run and are never sent to the browser.
+The production React build uses same-origin `/api/*` requests. A public
+`VITE_API_BASE_URL` override remains available for local frontend-only
+development. DataMall and OneMap credentials stay inside Cloud Run and are
+never sent to the browser.
 
 FastAPI accepts and returns camelCase JSON so its profile, route, and
 notification payloads match the TypeScript types. Route generation now runs on
@@ -175,8 +175,9 @@ VITE_API_BASE_URL=http://localhost:8080
 
 ### Continuous Deployment
 
-`cloudbuild.yaml` defines the production backend pipeline. A push to `main`
-builds the root `Dockerfile`, publishes the image to Artifact Registry, and
-deploys it to the `lta-nebula-x-hackathon` Cloud Run service in `us-central1`.
-The deployment uses the dedicated runtime identity above and preserves secrets
-managed by Cloud Run and Secret Manager.
+`cloudbuild.yaml` defines the production application pipeline. A push to `main`
+builds React and FastAPI through the root multi-stage `Dockerfile`, publishes
+the combined image to Artifact Registry, and deploys it to the
+`lta-nebula-x-hackathon` Cloud Run service in `us-central1`. The deployment
+uses the dedicated runtime identity above and preserves secrets managed by
+Cloud Run and Secret Manager.

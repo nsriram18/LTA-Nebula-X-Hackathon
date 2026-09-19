@@ -5,8 +5,11 @@ Firestore database integration, and the 45-minute proactive engine background wo
 """
 
 import os
-from fastapi import FastAPI, Query
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from dotenv import find_dotenv, load_dotenv
 
 # Load the nearest ignored .env file for local development. Cloud Run injects
@@ -16,7 +19,6 @@ load_dotenv(find_dotenv(usecwd=True))
 from models.schemas import (
     CommuterProfile,
     OfflineCacheSaveResponse,
-    ProactiveNotificationPayload,
     ProactiveEvaluationResponse,
     ProfileSaveResponse,
     OfflineRouteCache,
@@ -138,6 +140,36 @@ async def cache_offline_route(cache: OfflineRouteCache, commuter_id: str = "comm
 async def get_offline_cache(commuter_id: str = "commuter-arjun-01"):
     cached = db.get_cached_offline_route(commuter_id)
     return OfflineRouteCache(**cached) if cached else None
+
+
+STATIC_DIR = (Path(__file__).resolve().parent / "static").resolve()
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+async def serve_frontend(full_path: str):
+    """Serve compiled React assets and fall back to index.html for SPA routes."""
+    if full_path == "api" or full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API endpoint not found")
+
+    requested = (STATIC_DIR / full_path).resolve()
+    try:
+        requested.relative_to(STATIC_DIR)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail="File not found") from error
+
+    if requested.is_file():
+        cache_control = (
+            "no-cache"
+            if requested.name in {"index.html", "sw.js"}
+            else "public, max-age=31536000, immutable"
+        )
+        return FileResponse(requested, headers={"Cache-Control": cache_control})
+
+    index_file = STATIC_DIR / "index.html"
+    if index_file.is_file():
+        return FileResponse(index_file, headers={"Cache-Control": "no-cache"})
+
+    raise HTTPException(status_code=404, detail="Frontend build is not available")
 
 if __name__ == "__main__":
     import uvicorn
