@@ -2,12 +2,10 @@
  * ClearPath Service Worker for Offline Underground Resilience
  */
 
-const CACHE_NAME = 'clearpath-v1';
+const CACHE_NAME = 'clearpath-v2';
 const STATIC_ASSETS = [
-  '/',
   '/index.html',
   '/metadata.json',
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
 ];
 
 self.addEventListener('install', (event) => {
@@ -35,8 +33,24 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Offline-first strategy for static assets and tiles, network-first for live APIs
   const url = new URL(event.request.url);
+
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse.ok) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', clone));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
+  if (url.pathname.startsWith('/api/')) return;
 
   if (url.origin === location.origin || url.hostname.includes('tile.openstreetmap.org')) {
     event.respondWith(

@@ -49,7 +49,16 @@ export default function App() {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
         .register('/sw.js')
-        .then(() => console.log('ClearPath Service Worker registered for offline resilience'))
+        .then((registration) => {
+          console.log('ClearPath Service Worker registered for offline resilience');
+          void registration.update();
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (sessionStorage.getItem('clearpath_sw_refreshed') !== 'true') {
+              sessionStorage.setItem('clearpath_sw_refreshed', 'true');
+              window.location.reload();
+            }
+          });
+        })
         .catch((err) => console.warn('Service Worker registration skipped:', err));
     }
   }, []);
