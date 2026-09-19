@@ -50,7 +50,7 @@ export const ProactiveNotification: React.FC<ProactiveNotificationProps> = ({
             <button
               id="dismiss-notif-btn"
               onClick={onDismiss}
-              className="p-1.5 -mr-1 -mt-1 text-slate-400 hover:text-slate-200 rounded-lg touch-manipulation min-w-[36px] min-h-[36px] flex items-center justify-center"
+              className="p-1.5 -mr-1 -mt-1 text-slate-400 hover:text-slate-200 rounded-lg touch-manipulation min-w-11 min-h-11 flex items-center justify-center"
               aria-label="Dismiss notification"
             >
               <X className="w-4 h-4" />
@@ -68,19 +68,19 @@ export const ProactiveNotification: React.FC<ProactiveNotificationProps> = ({
           {/* Mitigations / Summary Pills */}
           <div className="flex flex-wrap gap-1.5 mt-2.5">
             {payload.timeShiftMinutes !== 0 && (
-              <span className="inline-flex items-center text-[10px] bg-slate-800 text-cyan-300 px-2 py-0.5 rounded-md border border-slate-700 font-mono">
+              <span className="inline-flex items-center text-xs bg-slate-800 text-cyan-300 px-2 py-1 rounded-md border border-slate-700 font-mono">
                 Departure: {payload.newDepartureTime} ({payload.timeShiftMinutes > 0 ? `+${payload.timeShiftMinutes}m` : `${payload.timeShiftMinutes}m`})
                 <EvidenceBadge evidence={payload.metricEvidence?.timeShiftMinutes} />
               </span>
             )}
             {payload.freeMitigationAvailable && (
-              <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-950/80 text-emerald-300 px-2 py-0.5 rounded-md border border-emerald-800 font-semibold">
+              <span className="inline-flex items-center gap-1 text-xs bg-emerald-950/80 text-emerald-300 px-2 py-1 rounded-md border border-emerald-800 font-semibold">
                 <ShieldCheck className="w-3 h-3" />
                 LTA Free Service Active
               </span>
             )}
             {payload.weatherSummary && (
-              <span className="text-[10px] bg-slate-800/90 text-amber-200 px-2 py-0.5 rounded-md border border-slate-700">
+              <span className="text-xs bg-slate-800/90 text-amber-200 px-2 py-1 rounded-md border border-slate-700">
                 {payload.weatherSummary}
               </span>
             )}

@@ -3,8 +3,8 @@ FROM node:22-alpine AS frontend
 
 WORKDIR /frontend
 
-COPY package.json ./
-RUN npm install --no-audit --no-fund
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
 
 COPY index.html tsconfig.json vite.config.ts .env.production ./
 COPY public/ ./public/

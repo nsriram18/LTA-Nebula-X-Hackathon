@@ -8,6 +8,7 @@ interface ProfileModalProps {
   profile: CommuterProfile;
   onSaveProfile: (updated: CommuterProfile) => void;
   syncStatus: 'syncing' | 'synced' | 'offline';
+  onDeleteData: () => Promise<void>;
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({
@@ -16,9 +17,11 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   profile,
   onSaveProfile,
   syncStatus,
+  onDeleteData,
 }) => {
   const [formData, setFormData] = useState<CommuterProfile>({ ...profile });
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (isOpen) setFormData({ ...profile });
@@ -59,16 +62,23 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           <button
             id="close-profile-modal-btn"
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-200 rounded-lg touch-manipulation min-w-[40px] min-h-[40px] flex items-center justify-center"
+            className="p-1.5 text-slate-400 hover:text-slate-200 rounded-lg touch-manipulation min-w-11 min-h-11 flex items-center justify-center"
+            aria-label="Close journey settings"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
+        <section className="rounded-2xl border border-rose-900/70 bg-rose-950/20 p-3 text-xs text-slate-300">
+          <h4 className="font-bold text-rose-200">Privacy controls</h4>
+          <p className="mt-1 leading-relaxed">Delete this commuter profile, saved journey and scheduled notification from Firestore and this browser.</p>
+          <button type="button" disabled={isDeleting} onClick={async () => { setIsDeleting(true); await onDeleteData(); setIsDeleting(false); onClose(); }} className="mt-3 min-h-11 w-full rounded-xl border border-rose-700 bg-rose-950/60 px-3 font-bold text-rose-100 disabled:opacity-50">{isDeleting ? 'Deleting…' : 'Delete my ClearPath data'}</button>
+        </section>
+
         {/* Routine Schedule */}
         <div className="space-y-3 text-xs">
           <div className="space-y-2">
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-cyan-400" /> Your commute
             </div>
             {([
@@ -85,10 +95,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   className="w-full bg-slate-950/70 border border-slate-700 rounded-lg px-2.5 py-2 text-white focus:outline-none focus:border-cyan-500"
                 />
                 <details className="rounded-lg border border-slate-700/60 bg-slate-950/30 p-2">
-                  <summary className="cursor-pointer text-[10px] font-semibold text-slate-400">Precise map coordinates</summary>
+                  <summary className="cursor-pointer text-xs font-semibold text-slate-400">Precise map coordinates</summary>
                   <div className="mt-2 grid grid-cols-2 gap-2">
                   {(['lat', 'lng'] as const).map((axis) => (
-                    <label key={axis} className="text-[10px] text-slate-400 uppercase">
+                    <label key={axis} className="text-xs text-slate-400 uppercase">
                       {axis === 'lat' ? 'Latitude' : 'Longitude'}
                       <input
                         type="number"
@@ -126,7 +136,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-cyan-500"
                 />
               </div>
-              <label className="bg-slate-800 px-2 py-1 rounded-xl border border-slate-700 text-slate-400 text-[10px] uppercase">
+              <label className="bg-slate-800 px-2 py-1 rounded-xl border border-slate-700 text-slate-400 text-xs uppercase">
                 Flexible time
                 <input
                   type="number"
@@ -138,14 +148,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 />
               </label>
             </div>
-            <p className="text-[10px] text-slate-500 mt-1">
+            <p className="text-xs text-slate-400 mt-1">
               ClearPath checks {formData.notificationLeadTimeMinutes} minutes before departure, at {proactiveTime}. <span className="font-bold text-slate-400">Calculated from your settings.</span>
             </p>
           </div>
 
           {/* Preferences Toggles */}
           <div className="space-y-2 pt-1 border-t border-slate-800">
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Travel preferences</div>
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Travel preferences</div>
 
             <label className="block p-2.5 rounded-xl bg-slate-800/60 border border-slate-700/60">
               <span className="font-medium text-slate-200 block mb-1.5">Preferred Travel Mode</span>
@@ -212,7 +222,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 <Zap className="w-4 h-4 text-amber-400" />
                 <div>
                   <span className="font-medium text-slate-200">Use motorcycle routing</span>
-                  <div className="text-[10px] text-slate-400">Plans a OneMap motorcycle journey</div>
+                  <div className="text-xs text-slate-400">Plans a OneMap motorcycle journey</div>
                 </div>
               </div>
               <input
@@ -225,7 +235,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           </div>
 
           {/* Cloud Firestore Storage Status */}
-          <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-2.5 flex items-center justify-between text-[11px] text-slate-400">
+          <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-2.5 flex items-center justify-between text-xs text-slate-400">
             <div className="flex items-center gap-1.5">
               <Database className="w-3.5 h-3.5 text-cyan-400" />
               <span>Google Cloud Firestore</span>

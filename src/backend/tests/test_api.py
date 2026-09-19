@@ -92,8 +92,9 @@ class ClearPathAPIContractTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertTrue(body["activeAlerts"])
-        self.assertEqual(body["payload"]["suggestedRouteId"], "route-mitigated-disruption")
-        self.assertEqual(body["routes"][0]["id"], "route-mitigated-disruption")
+        self.assertEqual(body["payload"]["suggestedRouteId"], "route-original")
+        self.assertEqual(body["routes"][0]["id"], "route-original")
+        self.assertFalse(body["routes"][0]["disruptionAvoided"])
         self.assertIn("totalDurationMinutes", body["routes"][0])
         self.assertNotIn("total_duration_minutes", body["routes"][0])
         self.assertEqual(body["routes"][0]["provider"], "estimated_fallback")
@@ -155,6 +156,27 @@ class ClearPathAPIContractTests(unittest.TestCase):
 
         for name, profile, weather, crowd, expected_route in cases:
             with self.subTest(name=name):
+                async def crowd_by_time(_line, time_slot):
+                    if name == "crowd" and time_slot != profile.scheduled_departure_time:
+                        return {"PE7": "m", "NE17": "m"}
+                    return crowd
+
+                one_map_route = {
+                    "plan": {
+                        "itineraries": [{
+                            "duration": 2400,
+                            "legs": [{
+                                "mode": "BUS",
+                                "duration": 2400,
+                                "distance": 14000,
+                                "route": "85",
+                                "from": {"name": "Start", "lat": 1.4024, "lon": 103.9068},
+                                "to": {"name": "Finish", "lat": 1.2995, "lon": 103.7876},
+                                "legGeometry": {"points": ""},
+                            }],
+                        }]
+                    }
+                }
                 with (
                     patch("main.db.get_commuter_profile", return_value=profile),
                     patch(
@@ -163,7 +185,7 @@ class ClearPathAPIContractTests(unittest.TestCase):
                     ),
                     patch(
                         "services.proactive_engine.lta_service.get_station_crowd_forecast",
-                        new=AsyncMock(return_value=crowd),
+                        new=AsyncMock(side_effect=crowd_by_time),
                     ),
                     patch(
                         "services.proactive_engine.weather_service.check_punggol_cycling_rain",
@@ -171,7 +193,7 @@ class ClearPathAPIContractTests(unittest.TestCase):
                     ),
                     patch(
                         "services.routing_service.onemap_service.get_route",
-                        new=AsyncMock(return_value={"status": "test"}),
+                        new=AsyncMock(return_value=one_map_route),
                     ),
                 ):
                     response = self.client.post(
@@ -182,6 +204,10 @@ class ClearPathAPIContractTests(unittest.TestCase):
                 body = response.json()
                 self.assertEqual(body["payload"]["suggestedRouteId"], expected_route)
                 self.assertTrue(any(route["id"] == expected_route for route in body["routes"]))
+
+    def test_scheduled_check_requires_verified_oidc_identity(self):
+        response = self.client.post("/api/scheduled-check")
+        self.assertEqual(response.status_code, 401)
 
     def test_routes_endpoint_uses_request_parameters(self):
         one_map_route = {

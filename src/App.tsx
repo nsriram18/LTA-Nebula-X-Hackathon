@@ -14,7 +14,7 @@ import { WelcomeFlow } from './components/WelcomeFlow';
 import { FirstRunTour } from './components/FirstRunTour';
 import { proactiveEngine } from './services/proactiveEngine';
 import { offlineStorage, DEFAULT_ARJUN_PROFILE } from './services/offlineStorage';
-import { RouteOption, RouteStep, CommuterProfile, ProactiveNotificationPayload, TrafficSpeedBand } from './types';
+import { RouteOption, RouteStep, CommuterProfile, ProactiveNotificationPayload, TrafficSpeedBand, PlannedEvent } from './types';
 import { backendApi } from './services/backendApi';
 
 type SyncStatus = 'syncing' | 'synced' | 'offline';
@@ -25,6 +25,7 @@ export default function App() {
   const [activeRoute, setActiveRoute] = useState<RouteOption | null>(null);
   const [selectedStep, setSelectedStep] = useState<RouteStep | null>(null);
   const [proactivePayload, setProactivePayload] = useState<ProactiveNotificationPayload | null>(null);
+  const [plannedEvents, setPlannedEvents] = useState<PlannedEvent[]>([]);
 
   // Scenario toggles for testing and judging validation
   const [isDisruptionReplay, setIsDisruptionReplay] = useState<boolean>(false);
@@ -92,6 +93,7 @@ export default function App() {
         simulatedCrowd: overrides.simulatedCrowd ?? isHighCrowd,
       });
       setRoutes(result.routes);
+      setPlannedEvents(result.plannedEvents || []);
 
       // Select recommended route or keep active
       const rec = result.routes.find((r) => r.isRecommended) || result.routes[0] || null;
@@ -129,7 +131,15 @@ export default function App() {
         setSyncStatus('offline');
       }
 
-      if (active) await runEvaluation(targetProfile);
+      if (active) {
+        await runEvaluation(targetProfile);
+        try {
+          const saved = await backendApi.getLatestNotification(targetProfile.id);
+          if (active && saved.notification) setProactivePayload(saved.notification);
+        } catch {
+          // A scheduled notification is optional; the live journey remains usable.
+        }
+      }
     };
     void bootstrap();
     return () => {
@@ -262,6 +272,7 @@ export default function App() {
       <div className="absolute inset-0 pt-16 pb-[148px] z-0">
         <MapComponent
           activeRoute={activeRoute}
+          comparisonRoute={activeRoute?.baselineRouteId ? routes.find((route) => route.id === activeRoute.baselineRouteId) || null : null}
           selectedStep={selectedStep}
           showShelterLayer={showShelterLayer}
           showCyclingLayer={showCyclingLayer}
@@ -291,6 +302,7 @@ export default function App() {
         offlineCachedAt={offlineCachedAt}
         isRaining={isHeavyRain}
         isDisrupted={isDisruptionReplay}
+        plannedEvents={plannedEvents}
       />
 
       {/* Profile / Commuter Persona Settings Modal */}
@@ -306,6 +318,16 @@ export default function App() {
         profile={profile}
         onSaveProfile={handleSaveProfile}
         syncStatus={syncStatus}
+        onDeleteData={async () => {
+          await backendApi.deleteCommuterData(profile.id);
+          offlineStorage.clearAll();
+          setProfile(DEFAULT_ARJUN_PROFILE);
+          setRoutes([]);
+          setActiveRoute(null);
+          setProactivePayload(null);
+          setPlannedEvents([]);
+          setIsWelcomeOpen(true);
+        }}
       />
 
       {isWelcomeOpen && <WelcomeFlow

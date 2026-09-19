@@ -29,9 +29,9 @@ export const ScenarioControls: React.FC<ScenarioControlsProps> = (props) => {
 
   return (
     <>
-      <button onClick={() => setOpen(true)} className="fixed left-3 top-20 z-[420] flex min-h-10 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/90 px-3 text-xs font-bold text-slate-100 shadow-lg backdrop-blur-md">
+      <button onClick={() => setOpen(true)} className="fixed left-3 top-20 z-[420] flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/90 px-3 text-xs font-bold text-slate-100 shadow-lg backdrop-blur-md">
         <Sparkles className="h-4 w-4 text-cyan-400" /> Demo Lab
-        {activeCount > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-cyan-500 px-1 text-[10px] text-slate-950">{activeCount}</span>}
+        {activeCount > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-cyan-500 px-1 text-xs text-slate-950">{activeCount}</span>}
       </button>
       {open && (
         <div className="fixed inset-0 z-[620] bg-slate-950/65 backdrop-blur-sm" onClick={() => setOpen(false)}>
@@ -43,7 +43,7 @@ export const ScenarioControls: React.FC<ScenarioControlsProps> = (props) => {
             <div className="grid gap-2 sm:grid-cols-2">
               {scenarios.map(({ id, title, note, active, onClick, icon: Icon, tone }) => (
                 <button key={id} id={id} onClick={onClick} className={`flex min-h-14 items-center gap-3 rounded-2xl border px-3 text-left ${active ? activeStyles[tone] : 'border-slate-700 bg-slate-800/70 text-slate-200'}`}>
-                  <Icon className="h-5 w-5 shrink-0"/><span><span className="block text-xs font-bold">{title}</span><span className="block text-[10px] opacity-70">{note}</span></span>
+                  <Icon className="h-5 w-5 shrink-0"/><span><span className="block text-xs font-bold">{title}</span><span className="block text-xs opacity-80">{note}</span></span>
                 </button>
               ))}
             </div>

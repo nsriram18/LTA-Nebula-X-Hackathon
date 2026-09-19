@@ -21,7 +21,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ profile, onOpenProfile, is
     </div>
     <button onClick={onOpenProfile} className="min-w-0 flex-1 rounded-xl px-1 py-1 text-left" aria-label="Edit commute">
       <div className="flex items-center gap-1 text-sm font-black text-white">ClearPath <span className="rounded bg-cyan-500/15 px-1.5 py-0.5 text-[8px] text-cyan-300">PS2</span></div>
-      <div className="mt-0.5 flex items-center gap-1 truncate text-[10px] font-medium text-slate-400">
+      <div className="mt-0.5 flex items-center gap-1 truncate text-xs font-medium text-slate-400">
         <span className="truncate">{shortPlace(profile.homeAddress)}</span><ChevronRight className="h-3 w-3 shrink-0"/><span className="truncate">{shortPlace(profile.officeAddress)}</span><span className="ml-1 shrink-0 text-cyan-300">{profile.scheduledDepartureTime}</span>
       </div>
     </button>
@@ -30,7 +30,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ profile, onOpenProfile, is
         {isUnderground ? <WifiOff className="h-4 w-4"/> : <CloudRain className="h-4 w-4"/>}
       </div>
     )}
-    <button id="profile-toggle-btn" onClick={onOpenProfile} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-slate-200" aria-label="Open journey settings">
+    <button id="profile-toggle-btn" onClick={onOpenProfile} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-slate-200" aria-label="Open journey settings">
       <User className="h-4 w-4 text-cyan-400" />
     </button>
   </header>

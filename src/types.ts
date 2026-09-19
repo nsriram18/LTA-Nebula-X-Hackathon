@@ -65,6 +65,11 @@ export interface RouteOption {
   disruptionAvoided?: boolean;
   trafficStressScore?: number; // For motorcycle mode
   weatherRisk?: 'None' | 'Moderate Rain' | 'Heavy Rain';
+  condition?: 'baseline' | 'disruption' | 'rain' | 'crowd' | 'planned_event' | 'motorcycle';
+  baselineRouteId?: string;
+  durationDeltaMinutes?: number;
+  crowdComparison?: string;
+  uncertaintyNote: string;
   provider: 'onemap' | 'estimated_fallback';
   metricEvidence: Record<string, MetricEvidence>;
 }
@@ -189,4 +194,17 @@ export interface ProactiveEvaluationResult {
   activeAlerts: boolean;
   weatherAlert: boolean;
   profile: CommuterProfile;
+  plannedEvents: PlannedEvent[];
+}
+
+export interface PlannedEvent {
+  id: string;
+  category: 'road_work' | 'road_opening' | 'planned_bus_route';
+  title: string;
+  startDate?: string;
+  endDate?: string;
+  location?: string;
+  detail?: string;
+  affectsJourney: boolean;
+  evidence: MetricEvidence;
 }

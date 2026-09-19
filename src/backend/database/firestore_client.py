@@ -5,7 +5,7 @@ Using google-cloud-firestore Python SDK
 
 import os
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from google.cloud import firestore
 from models.schemas import CommuterProfile, OfflineRouteCache
 
@@ -85,5 +85,44 @@ class FirestoreDB:
             except Exception as e:
                 logger.error(f"Firestore fetch offline route error: {e}")
         return self._in_memory_fallback["offline_caches"].get(commuter_id)
+
+    def list_commuter_profiles(self) -> List[CommuterProfile]:
+        if self.client:
+            try:
+                return [CommuterProfile(**doc.to_dict()) for doc in self.client.collection("commuters").stream()]
+            except Exception as e:
+                logger.error(f"Firestore commuter list error: {e}")
+        profiles = [CommuterProfile(**data) for data in self._in_memory_fallback["commuters"].values()]
+        return profiles or [CommuterProfile()]
+
+    def save_notification(self, commuter_id: str, notification: Dict[str, Any]) -> bool:
+        if self.client:
+            try:
+                self.client.collection("notifications").document(commuter_id).set(notification)
+                return True
+            except Exception as e:
+                logger.error(f"Firestore notification save error: {e}")
+        self._in_memory_fallback["notifications"][commuter_id] = notification
+        return True
+
+    def get_notification(self, commuter_id: str) -> Optional[Dict[str, Any]]:
+        if self.client:
+            try:
+                doc = self.client.collection("notifications").document(commuter_id).get()
+                if doc.exists:
+                    return doc.to_dict()
+            except Exception as e:
+                logger.error(f"Firestore notification fetch error: {e}")
+        return self._in_memory_fallback["notifications"].get(commuter_id)
+
+    def delete_commuter_data(self, commuter_id: str) -> None:
+        if self.client:
+            for collection in ("commuters", "offline_caches", "notifications"):
+                try:
+                    self.client.collection(collection).document(commuter_id).delete()
+                except Exception as e:
+                    logger.error(f"Firestore deletion error for {collection}: {e}")
+        for collection in ("commuters", "offline_caches", "notifications"):
+            self._in_memory_fallback[collection].pop(commuter_id, None)
 
 db = FirestoreDB()

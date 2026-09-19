@@ -446,14 +446,49 @@ class RoutingService:
             route.is_recommended = route.id == selected_id
             route.is_alternative = route.id != selected_id
 
+    @staticmethod
+    def _alert_intersects_route(
+        route: RouteOption, profile: CommuterProfile, alerts: Dict[str, Any]
+    ) -> bool:
+        route_text = " ".join(
+            [
+                profile.home_address,
+                profile.office_address,
+                *(step.instruction for step in route.steps),
+                *(step.station_name or "" for step in route.steps),
+            ]
+        ).lower()
+        hints = {
+            "PTL": ("punggol", "pgl", "pe"),
+            "PEL": ("punggol", "pgl", "pe"),
+            "PWL": ("punggol", "pgl", "pw"),
+            "STL": ("sengkang", "sk"),
+            "SEL": ("sengkang", "se"),
+            "SWL": ("sengkang", "sw"),
+            "NEL": ("north east line", "nel", "punggol"),
+            "CCL": ("circle line", "ccl", "one-north"),
+        }
+        for segment in alerts.get("AffectedSegments", []):
+            stations = {
+                value.strip().lower()
+                for value in str(segment.get("Stations", "")).split(",")
+                if value.strip()
+            }
+            if any(station in route_text for station in stations):
+                return True
+            if any(hint in route_text for hint in hints.get(str(segment.get("Line", "")), ())):
+                return True
+        return False
+
     async def generate_routes(
         self,
         profile: CommuterProfile,
         alerts: Dict[str, Any],
         weather: Dict[str, Any],
         crowd: Dict[str, str],
+        shifted_crowd: Dict[str, str] | None = None,
     ) -> List[RouteOption]:
-        """Plan from profile parameters, then apply proactive scenario annotations."""
+        """Keep a baseline and independently calculate condition-specific alternatives."""
         request = RouteRequest(
             origin=profile.home_coords,
             destination=profile.office_coords,
@@ -471,65 +506,113 @@ class RoutingService:
         routes, _ = await self.plan_route(request, crowd)
         primary = routes[0]
         raining = bool(weather.get("is_raining"))
-        disrupted = alerts.get("Status") == 2 and bool(alerts.get("AffectedSegments"))
+        disrupted = (
+            alerts.get("Status") == 2
+            and bool(alerts.get("AffectedSegments"))
+            and self._alert_intersects_route(primary, profile, alerts)
+        )
+
+        primary.id = "route-original"
+        primary.title = "Original OneMap Commute" if primary.provider == "onemap" else "Original Estimated Commute"
+        primary.condition = "baseline"
+        self._set_recommended(routes, primary.id)
+        for alternative in routes[1:]:
+            alternative.baseline_route_id = primary.id
+            alternative.duration_delta_minutes = alternative.total_duration_minutes - primary.total_duration_minutes
 
         if profile.motorcycle_mode:
             primary.id = "moto-route-smooth"
             primary.title = "Live Motorcycle Route"
+            primary.condition = "motorcycle"
             primary.traffic_stress_score = None
             primary.weather_risk = "Moderate Rain" if raining else "None"
             return routes
 
-        primary.id = "route-live-primary"
-        primary.title = "Live OneMap Commute"
-
         if disrupted:
             segment = alerts.get("AffectedSegments", [{}])[0]
             mitigation = segment.get("FreeMRTShuttle") or segment.get("FreePublicBus")
-            primary.id = "route-mitigated-disruption"
-            primary.title = "Live Disruption-Aware Route"
-            primary.subtitle = (
-                f"Avoids affected service: {segment.get('Stations', 'reported segment')}"
+            mitigation_request = request.model_copy(
+                update={"travel_mode": "bus", "num_itineraries": 2}
             )
-            primary.disruption_avoided = True
-            if primary.steps:
-                primary.steps[0].disruption_alert = (
-                    mitigation or "LTA mitigation service is active"
-                )
-                primary.steps[0].free_mitigation = (
-                    "FreeMRTShuttle"
-                    if segment.get("FreeMRTShuttle")
-                    else "FreePublicBus"
+            mitigation_routes, _ = await self.plan_route(mitigation_request, crowd)
+            mitigation_route = mitigation_routes[0]
+            verified_bus_route = (
+                mitigation_route.provider == "onemap"
+                and not any(mode in {"mrt", "lrt"} for mode in mitigation_route.mode_summary)
+                and "bus" in mitigation_route.mode_summary
+            )
+            if verified_bus_route:
+                mitigation_route.id = "route-mitigated-disruption"
+                mitigation_route.title = "Verified Bus Alternative"
+                mitigation_route.subtitle = f"Avoids affected rail service: {segment.get('Stations', 'reported segment')}"
+                mitigation_route.condition = "disruption"
+                mitigation_route.baseline_route_id = primary.id
+                mitigation_route.duration_delta_minutes = mitigation_route.total_duration_minutes - primary.total_duration_minutes
+                mitigation_route.disruption_avoided = True
+                mitigation_route.is_recommended = True
+                mitigation_route.is_alternative = False
+                for step in mitigation_route.steps:
+                    if step.mode == "bus":
+                        step.disruption_alert = mitigation or "LTA reports bridging transit"
+                        step.free_mitigation = (
+                            "FreeMRTShuttle" if segment.get("FreeMRTShuttle") else "FreePublicBus"
+                        )
+                self._set_recommended(routes, mitigation_route.id)
+                routes.append(mitigation_route)
+            else:
+                primary.uncertainty_note = (
+                    "A disruption is reported, but OneMap did not return a verified rail-free alternative. Follow LTA staff guidance."
                 )
         elif raining and weather.get("severity") == "Heavy Rain":
-            primary.id = "route-rain-sheltered"
-            primary.title = "Rain-Aware Live Route"
-            primary.weather_risk = "Heavy Rain"
+            rain_request = request.model_copy(
+                update={"travel_mode": "bus", "max_walk_distance": 600, "num_itineraries": 2}
+            )
+            rain_routes, _ = await self.plan_route(rain_request, crowd)
+            rain_route = rain_routes[0]
+            if rain_route.provider == "onemap" and "cycle" not in rain_route.mode_summary:
+                rain_route.id = "route-rain-sheltered"
+                rain_route.title = "Lower-Exposure Bus Alternative"
+                rain_route.condition = "rain"
+                rain_route.baseline_route_id = primary.id
+                rain_route.duration_delta_minutes = rain_route.total_duration_minutes - primary.total_duration_minutes
+                rain_route.weather_risk = "Heavy Rain"
+                rain_route.uncertainty_note = "Cycling is removed, but sheltered-walk coverage is unmeasured."
+                self._set_recommended(routes, rain_route.id)
+                routes.append(rain_route)
+            else:
+                primary.weather_risk = "Heavy Rain"
+                primary.uncertainty_note = "Heavy rain is reported; a verified lower-exposure route is unavailable."
 
         if profile.flexible_window_minutes > 0:
             shift = min(20, profile.flexible_window_minutes)
-            off_peak = primary.model_copy(deep=True)
+            shifted_departure = self._arrival(profile.scheduled_departure_time, shift)
+            shifted_request = request.model_copy(
+                update={"departure_time": shifted_departure, "num_itineraries": 2}
+            )
+            shifted_routes, _ = await self.plan_route(shifted_request, shifted_crowd or {})
+            off_peak = shifted_routes[0]
             off_peak.id = "route-proactive-offpeak"
-            off_peak.title = f"Flexible Departure (+{shift} Min)"
-            off_peak.departure_time = self._arrival(
-                profile.scheduled_departure_time, shift
-            )
-            off_peak.arrival_time = self._arrival(
-                off_peak.departure_time, off_peak.total_duration_minutes
-            )
+            off_peak.title = f"Recalculated at {shifted_departure}"
+            off_peak.condition = "crowd"
+            off_peak.baseline_route_id = primary.id
+            off_peak.duration_delta_minutes = off_peak.total_duration_minutes - primary.total_duration_minutes
             off_peak.proactive_shift_minutes = shift
-            off_peak.metric_evidence["departureTime"] = self._evidence("ClearPath scenario", "derived", f"Adds the profile's allowed {shift}-minute flexible shift to the scheduled time.")
-            off_peak.metric_evidence["arrivalTime"] = self._evidence("ClearPath calculation", "derived", "Shifted departure time plus the same route duration; traffic was not re-queried.")
+            off_peak.crowd_comparison = f"{self._crowd_score(crowd)} at {profile.scheduled_departure_time} → {self._crowd_score(shifted_crowd or {})} at {shifted_departure}"
+            off_peak.metric_evidence["departureTime"] = self._evidence("ClearPath calculation", "derived", f"Adds the profile's allowed {shift}-minute shift, then sends a new OneMap request.")
+            off_peak.metric_evidence["crowdComparison"] = self._crowd_evidence(shifted_crowd or {})
             off_peak.is_recommended = False
             off_peak.is_alternative = True
             routes.append(off_peak)
 
-            if (
+            rank = {"Low": 0, "Moderate": 1, "High": 2, "Unavailable": 3}
+            verified_improvement = (
                 profile.prioritize_low_crowd
-                and self._crowd_score(crowd) == "High"
+                and off_peak.provider == "onemap"
+                and rank[self._crowd_score(shifted_crowd or {})] < rank[self._crowd_score(crowd)]
                 and not disrupted
                 and not raining
-            ):
+            )
+            if verified_improvement:
                 self._set_recommended(routes, off_peak.id)
 
         return routes

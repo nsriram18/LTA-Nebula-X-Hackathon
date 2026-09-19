@@ -32,6 +32,10 @@ export const DEFAULT_ARJUN_PROFILE: CommuterProfile = {
 };
 
 class OfflineStorageManager {
+  public clearAll(): void {
+    [STORAGE_KEY, PROFILE_KEY, ONBOARDING_KEY, TOUR_KEY].forEach((key) => localStorage.removeItem(key));
+  }
+
   public hasCompletedOnboarding(): boolean {
     return localStorage.getItem(ONBOARDING_KEY) === 'true';
   }

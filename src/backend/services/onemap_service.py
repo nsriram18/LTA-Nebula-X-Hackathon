@@ -66,7 +66,7 @@ class OneMapService:
                 {
                     "date": travel_date.strftime("%m-%d-%Y"),
                     "time": f"{departure_time}:00",
-                    "mode": mode,
+                    "mode": mode.upper(),
                     "maxWalkDistance": str(max_walk_distance),
                     "numItineraries": str(num_itineraries),
                 }

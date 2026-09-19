@@ -1,203 +1,142 @@
 # ClearPath — Proactive Commuter Companion
-> **Singapore Problem Statement 2 (PS2) Challenge Submission**  
-> Tailored specifically for **Arjun** (Multi-modal, flexible-start commuter travelling from Punggol to one-north).
 
-**Live frontend:** [https://lta-nebula-x-hackathon-314751883323.us-central1.run.app](https://lta-nebula-x-hackathon-314751883323.us-central1.run.app)
+Singapore Problem Statement 2 submission for Arjun, a flexible-start, multi-modal commuter travelling from Punggol to one-north.
 
----
+- **Live app:** [https://lta-nebula-x-hackathon-314751883323.us-central1.run.app](https://lta-nebula-x-hackathon-314751883323.us-central1.run.app)
+- **Pitch video:** Pending final physical-phone recording
+- **Architecture and evidence:** [WRITEUP.md](WRITEUP.md)
 
-## 1. Quick Overview
+## What ClearPath does
 
-ClearPath is a proactive, mobile-first commuter companion application built on OpenStreetMap geospatial data, Singapore LTA DataMall real-time feeds, and data.gov.sg weather analytics.
+ClearPath retains Arjun's original OneMap journey and checks train disruption, station crowd forecasts, weather and LTA planned events before departure. It recommends a different journey only after making a separate routing/data request that supports the change. Estimated, simulated, cached and unavailable values are labelled explicitly.
 
-Unlike reactive transit applications that announce delays while a commuter is already stranded on a crowded platform, ClearPath's **Proactive Engine** runs a background evaluation **45 minutes prior** to the scheduled commute. If rail disruptions, severe station congestion, or localized rain cells along the cycling leg are detected, ClearPath proactively computes and delivers a decisive action: an optimized departure time shift or an alternative multi-modal route utilizing LTA CoveredLinkWays and Free Bridging Transit.
+## Prerequisites
 
----
+| Component | Version |
+|---|---|
+| Node.js | 18 or newer; 20+ recommended |
+| npm | 9 or newer |
+| Python | 3.10 or newer |
+| Docker | Optional, version 24 or newer |
 
-## 2. Prerequisites
+## Configuration
 
-| Component | Required Runtime / Version | Package Manager |
-|---|---|---|
-| **Frontend UI / Client** | Node.js `>= 18.0.0` (v20+ recommended) | `npm` `>= 9.0.0` |
-| **Backend & Proactive Worker** | Python `>= 3.10.0` (v3.11 recommended) | `pip` |
-| **Containerization (Optional)** | Docker `>= 24.0.0` | Docker CLI / Cloud Run |
+Copy the environment template. It contains variable names and non-secret configuration only.
 
----
-
-## 3. Configuration (`.env`)
-
-ClearPath requires no hardcoded credentials. An environment template is provided in `.env.example`.
-
-Copy `.env.example` to `.env`:
 ```bash
 cp .env.example .env
 ```
 
-### Environment Variables Description
-| Variable Name | Purpose | Where to Obtain |
+| Variable | Purpose | Source |
 |---|---|---|
-| `LTA_DATAMALL_ACCOUNT_KEY` | LTA DataMall feeds (`TrainServiceAlerts`, `PCDForecast`, `v3/BusArrival`, `v4/TrafficSpeedBands`) | Free registration at [LTA DataMall](https://datamall.lta.gov.sg) |
-| `ONEMAP_EMAIL` & `ONEMAP_PASSWORD` | OneMap routing & reverse geocoding API | Free registration at [OneMap API Docs](https://www.onemap.gov.sg/apidocs/) |
-| `ONEMAP_API_TOKEN` | Bearer token for OneMap Routing | Generated from OneMap account |
-| `GCP_PROJECT_ID` | Google Cloud project ID for Firestore | GCP Cloud Console |
-| `FIRESTORE_DATABASE_ID` | Firestore database ID (defaults to `(default)`) | GCP Firestore |
+| `LTA_DATAMALL_ACCOUNT_KEY` | LTA live and planned transport feeds | [LTA DataMall API access](https://datamall.lta.gov.sg/content/datamall/en/request-for-api.html) |
+| `ONEMAP_EMAIL` | OneMap token refresh | [OneMap API](https://www.onemap.gov.sg/apidocs/) |
+| `ONEMAP_PASSWORD` | OneMap token refresh | OneMap account |
+| `ONEMAP_API_TOKEN` | OneMap routing bearer token | OneMap account |
+| `GCP_PROJECT_ID` | Firestore project | Google Cloud Console |
+| `FIRESTORE_DATABASE_ID` | Firestore database; normally `(default)` | Google Cloud Console |
+| `APP_URL` | Allowed frontend origin and scheduler OIDC audience | Local or Cloud Run URL |
+| `SCHEDULER_SERVICE_ACCOUNT` | Expected OIDC caller for scheduled checks | Runtime service-account email |
+| `VITE_API_BASE_URL` | Optional local frontend API override | `http://localhost:8080` for local backend |
 
-`LTA_DATAMALL_ACCOUNT_KEY`, `ONEMAP_EMAIL`, `ONEMAP_PASSWORD`, and
-`ONEMAP_API_TOKEN` are backend-only secrets. Do not prefix them with `VITE_` or
-otherwise include them in the browser build. In Cloud Run, inject them from
-Google Secret Manager. Cloud Run authenticates to Firestore using its attached
-service account through Application Default Credentials; do not deploy a
-service-account JSON key.
+Never expose LTA or OneMap secrets with a `VITE_` prefix. Production values are injected from Secret Manager into Cloud Run.
 
-> **Data-integrity behavior:**
-> If an upstream feed is unavailable, ClearPath reports that metric as unavailable instead of inventing a normal service, crowd, weather, bus-arrival, or traffic reading. If OneMap fails, the replacement is visibly titled **Estimated Fallback Route**, with its formula exposed in the UI. Saved underground journeys are visibly labeled **CACHED**.
+## Fastest evaluation path
 
----
-
-## 4. Install & Run Commands (Step-by-Step)
-
-### Option A: Running the Complete Full-Stack Web Application (Recommended for Instant Evaluation)
+This starts the frontend locally and uses the deployed Cloud Run API. Internet access is required.
 
 ```bash
-# 1. Install frontend dependencies
 npm install
-
-# 2. Start the dev server (Vite on port 3000)
 npm run dev
 ```
 
-Open your mobile browser or desktop browser at:
-👉 **`http://localhost:3000`**
+Open `http://localhost:3000`.
 
----
+## Fully local frontend and backend
 
-### Option B: Running the Python FastAPI Backend Independently
+Terminal 1:
 
 ```bash
-# 1. Navigate to backend directory
 cd src/backend
-
-# 2. Create and activate a Python virtual environment
 python3 -m venv venv
-source venv/bin/activate   # On Windows: venv\Scripts\activate
-
-# 3. Install Python dependencies
+source venv/bin/activate
 pip install -r requirements.txt
-
-# 4. Launch FastAPI server with Uvicorn
 uvicorn main:app --host 0.0.0.0 --port 8080 --reload
 ```
 
-Backend API Swagger Docs will be accessible at:
-👉 **`http://localhost:8080/docs`**
-
----
-
-### Option C: Running with Docker (Cloud Run Container Image)
+Terminal 2, from the repository root:
 
 ```bash
-# Build Docker image
-docker build -t clearpath-backend .
-
-# Run Docker container
-docker run -p 8080:8080 -e PORT=8080 clearpath-backend
+cp .env.example .env
 ```
 
----
+Set `VITE_API_BASE_URL=http://localhost:8080` in the ignored `.env`, then run:
 
-## 5. What to Click: Step-by-Step Judge Journey
+```bash
+npm install
+npm run dev
+```
 
-Follow this journey to test ClearPath end-to-end:
+The API documentation is at `http://localhost:8080/docs`.
 
-1. **Launch App**: Open `http://localhost:3000`. First-time visitors receive a short product introduction and can either set up a commute or explore the sample journey. Three optional coach marks introduce the journey header, expandable route card, and Demo Lab.
-2. **Observe the map-first journey**:
-   - The initial profile's scheduled commute is **08:30 AM**; origin, destination, coordinates, time, and mode are editable.
-   - The map occupies most of the mobile screen. Tap **View journey** to reveal alternatives and directions, or expand fully for **Sources & calculations**.
-   - Tap **Layers** to enable the optional sheltered-walkway, cycling-path, and reference-station overlays.
-3. **Simulate Train Disruption Replay**:
-   - Open **Demo Lab**, then tap **"Train disruption replay"**.
-   - This is visibly labeled **SIMULATION**. It exercises nested `AffectedSegments`, `FreeMRTShuttle`, and `FreePublicBus` handling without claiming a current disruption.
-4. **Simulate Torrential Rain on Cycling Leg**:
-   - In **Demo Lab**, tap **"Heavy rain"** to activate a clearly labeled **SIMULATION** value of **18.4 mm/h** near the configured origin.
-   - No clearance time, shelter percentage, bus load, or road-friction value is asserted without evidence.
-5. **Simulate Underground / Loss of Cellular Signal**:
-   - In **Demo Lab**, tap **"Simulate tunnel"** (or switch your phone to Airplane Mode).
-   - ClearPath loads the saved active journey, displays the cache timestamp, and labels its displayed metrics **CACHED**.
-6. **Test "Beyond the Brief": Motorcycle Mode (Yamaha XSR155)**:
-   - In **Demo Lab** or journey settings, enable **"Motorcycle route"**.
-   - ClearPath requests a motorcycle route from OneMap. It does not invent speed bands, clutch events, fatigue, time saved, or grip telemetry when those measurements are absent.
+Without Google credentials, Firestore uses process-memory storage. Without OneMap or LTA credentials, affected values become unavailable or a route becomes an explicitly labelled estimate; the app does not invent a healthy feed.
 
----
+## Docker
 
-## 6. Deployment Architecture
+The root container builds React and serves it from FastAPI, matching Cloud Run.
 
-- **Application (Google Cloud Run)**: The multi-stage `Dockerfile` builds the React frontend and packages it with the FastAPI backend in one production container on port 8080.
-- **Frontend delivery**: FastAPI serves the compiled SPA and static assets from the same Cloud Run origin as `/api/*`, eliminating cross-origin configuration for the production application.
-- **Database (Google Cloud Firestore)**: Stores commuter profiles, routines, notification preferences, and offline fallback route snapshots.
+```bash
+docker build -t clearpath .
+docker run --env-file .env -p 8080:8080 clearpath
+```
 
-### Current Google Cloud Application
+Open `http://localhost:8080`.
 
-- **Project:** `qwiklabs-gcp-02-e3a0cea27f91`
-- **Region:** `us-central1`
-- **Cloud Run service:** `lta-nebula-x-hackathon`
-- **Application URL:** `https://lta-nebula-x-hackathon-314751883323.us-central1.run.app`
-- **Health check:** `https://lta-nebula-x-hackathon-314751883323.us-central1.run.app/api/health`
+## Judge journey
 
-The Cloud Run revision uses the dedicated
-`lta-nebula@qwiklabs-gcp-02-e3a0cea27f91.iam.gserviceaccount.com` runtime
-identity and the `(default)` Firestore database in `us-central1`. LTA and
-OneMap values must be supplied through Secret Manager; they are never included
-in the source upload or browser bundle.
+1. Open the live app. The welcome flow explains the journey header, route sheet and Demo Lab.
+2. Select **Explore sample journey**. The map displays Arjun's parameter-driven OneMap journey.
+3. Open **Demo Lab** and select **Train disruption replay**. The replay is labelled `SIMULATION`. If OneMap returns a verified bus-only journey, it appears beside the grey original route. Otherwise the app explicitly says that a rail-free alternative could not be verified.
+4. Select **Heavy rain**. ClearPath makes a separate bus request and removes cycling only when the returned journey supports that claim. No shelter percentage is invented.
+5. Select **High platform crowd**. The demo makes separate scheduled-time and shifted-time crowd checks and a second OneMap request. The comparison displays both crowd categories.
+6. Expand **View journey** to inspect planned LTA events, alternatives, directions, timing uncertainty and **Sources & calculations**.
+7. Select **Simulate tunnel**. The saved journey and timestamp are labelled `CACHED`.
+8. Open journey settings to change the origin, destination, coordinates, departure time and mode, or use **Delete my ClearPath data**.
 
-### Frontend-to-Backend Integration
+## Evidence behavior
 
-The production React build uses same-origin `/api/*` requests. A public
-`VITE_API_BASE_URL` override remains available for local frontend-only
-development. DataMall and OneMap credentials stay inside Cloud Run and are
-never sent to the browser.
-
-FastAPI accepts and returns camelCase JSON so its profile, route, and
-notification payloads match the TypeScript types. Route generation now runs on
-the backend; there is no browser-generated routing fallback. Scenario controls are sent to `/api/proactive-check` as explicit
-disruption, rain, and crowd simulation parameters.
-
-`POST /api/routes` performs parameter-driven routing. It accepts an explicit
-Singapore origin and destination, departure time, travel mode, maximum walking
-distance, itinerary count, and comfort preferences. OneMap public-transport
-legs or path geometry are normalized into the route/step contract used by the
-React map. If OneMap is temporarily unavailable, the response is marked
-`provider: "fallback"` and returns a coordinate-derived estimate instead of a
-fixed demo journey. Proactive evaluations also send the current profile in the
-request body, so newly edited journey parameters are used immediately.
-
-### Metric Evidence and Fallback Labels
-
-| Displayed value | Evidence shown in the app | Failure behavior |
+| Value | Evidence | Unavailable behavior |
 |---|---|---|
-| Route and leg duration/distance/geometry | `LIVE API` — OneMap Routing API | `ESTIMATE` — Haversine × 1.22, documented assumed speed, and transfer allowance |
-| Departure time | `REFERENCE` — commuter profile | Remains the configured value |
-| Arrival time | `DERIVED` — departure plus route duration | Uses the labeled estimated duration only on an Estimated Fallback Route |
-| Crowd | `LIVE API` — LTA PCDForecast, or `SIMULATION` | `Unavailable`; no low-crowd assumption |
-| Train disruption | `LIVE API` — LTA TrainServiceAlerts, or `SIMULATION` replay | Unknown/unavailable; no normal-service assertion |
-| Weather | `LIVE API` — data.gov.sg area forecast, or `SIMULATION` | Unknown/unavailable; no dry-weather assertion |
-| Shelter percentage | Shown only when supported by route data | `Unavailable`; a preference is not converted into a percentage |
-| Motorcycle fatigue, grip, and clutch events | Not displayed without a validated sensor/model | `Unavailable` |
-| Underground journey | `CACHED` with snapshot time | No claim that cached values are current |
+| Route geometry/time/distance | OneMap | Labelled Haversine estimate with formula |
+| Crowd | LTA `PCDForecast` or simulation | `Unavailable` |
+| Train disruption | LTA `TrainServiceAlerts` or replay | No normal-service assertion |
+| Planned events | LTA `RoadWorks`, `RoadOpenings`, `PlannedBusRoutes` | Planned-event section omitted |
+| Weather | data.gov.sg or simulation | Unknown; no dry-weather assertion |
+| Offline journey | Saved snapshot | `CACHED` with saved time |
 
-The green shelter and cyan cycling lines are labeled **REFERENCE OVERLAY**. They are illustrative subsets, not a whole-island live feed, and are not used to calculate a shelter percentage.
+## Deployment
 
-For local frontend development, either retain the production API URL or set a
-local override in the ignored `.env` file:
+- Google Cloud project: `qwiklabs-gcp-02-e3a0cea27f91`
+- Region: `us-central1`
+- Cloud Run service: `lta-nebula-x-hackathon`
+- Firestore database: `(default)`
+- Scheduler job: `clearpath-proactive-check`
+- Health check: [Cloud Run health endpoint](https://lta-nebula-x-hackathon-314751883323.us-central1.run.app/api/health)
 
-```dotenv
-VITE_API_BASE_URL=http://localhost:8080
+`cloudbuild.yaml` builds the combined image, publishes it to Artifact Registry and deploys it with the dedicated runtime service account and Secret Manager values. Cloud Scheduler sends an OIDC-authenticated request every five minutes; the API performs work only at the profile's configured lead time.
+
+## Privacy
+
+ClearPath stores commute addresses/coordinates, preferences, the latest active journey and the latest scheduled notification. It does not collect continuous location history. Firestore records and browser storage remain until the user selects **Delete my ClearPath data**; route and notification snapshots are overwritten as newer ones are saved. Full details are in [WRITEUP.md](WRITEUP.md).
+
+## Validation
+
+```bash
+npm run lint
+npm run build
+npm run check:secrets
+cd src/backend
+python -m unittest discover -s tests -v
 ```
 
-### Continuous Deployment
-
-`cloudbuild.yaml` defines the production application pipeline. A push to `main`
-builds React and FastAPI through the root multi-stage `Dockerfile`, publishes
-the combined image to Artifact Registry, and deploys it to the
-`lta-nebula-x-hackathon` Cloud Run service in `us-central1`. The deployment
-uses the dedicated runtime identity above and preserves secrets managed by
-Cloud Run and Secret Manager.
+Before submission, repeat the judge journey on the physical phone used for the video, including Airplane Mode, portrait orientation, bright-light readability and one-handed controls.

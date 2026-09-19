@@ -2,7 +2,7 @@
  * ClearPath Service Worker for Offline Underground Resilience
  */
 
-const CACHE_NAME = 'clearpath-v2';
+const CACHE_NAME = 'clearpath-v3';
 const STATIC_ASSETS = [
   '/index.html',
   '/metadata.json',
@@ -52,14 +52,14 @@ self.addEventListener('fetch', (event) => {
 
   if (url.pathname.startsWith('/api/')) return;
 
-  if (url.origin === location.origin || url.hostname.includes('tile.openstreetmap.org')) {
+  if (url.origin === location.origin || url.hostname.includes('basemaps.cartocdn.com')) {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         if (cachedResponse) {
           return cachedResponse;
         }
         return fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
+          if (networkResponse && (networkResponse.ok || networkResponse.type === 'opaque')) {
             const responseClone = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(event.request, responseClone);

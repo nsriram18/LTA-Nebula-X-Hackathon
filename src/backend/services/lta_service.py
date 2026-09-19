@@ -3,6 +3,7 @@ LTA DataMall API Service (Python/FastAPI)
 Implements TrainServiceAlerts nested AffectedSegments parser, PCDForecast, BusArrival (v3), and TrafficSpeedBands (v4)
 """
 
+import asyncio
 import os
 from datetime import datetime, timezone
 import httpx
@@ -166,6 +167,86 @@ class LTAService:
             except Exception:
                 pass
         return []
+
+    async def get_planned_events(
+        self, origin_address: str = "", destination_address: str = ""
+    ) -> List[Dict[str, Any]]:
+        """Return normalized first-class planned transport events from DataMall."""
+        if not self.account_key:
+            return []
+
+        headers = {"AccountKey": self.account_key, "accept": "application/json"}
+
+        async def fetch(endpoint: str) -> List[Dict[str, Any]]:
+            async with httpx.AsyncClient() as client:
+                try:
+                    response = await client.get(
+                        f"{self.BASE_URL}/{endpoint}", headers=headers, timeout=8.0
+                    )
+                    if response.status_code == 200:
+                        value = response.json().get("value", [])
+                        return value if isinstance(value, list) else []
+                except (httpx.HTTPError, ValueError):
+                    pass
+            return []
+
+        road_works, road_openings, bus_routes = await asyncio.gather(
+            fetch("RoadWorks"),
+            fetch("RoadOpenings"),
+            fetch("PlannedBusRoutes"),
+        )
+        address_words = {
+            word.lower().strip(",.-")
+            for word in f"{origin_address} {destination_address}".split()
+            if len(word.strip(",.-")) >= 5
+        }
+
+        def normalize(
+            item: Dict[str, Any], category: str, index: int
+        ) -> Dict[str, Any]:
+            location = str(
+                item.get("RoadName")
+                or item.get("RoadName1")
+                or item.get("RouteDescription")
+                or item.get("Description")
+                or ""
+            )
+            detail = str(
+                item.get("Other")
+                or item.get("Remarks")
+                or item.get("ServiceNo")
+                or item.get("Description")
+                or ""
+            )
+            searchable = f"{location} {detail}".lower()
+            affects = any(word in searchable for word in address_words)
+            label = {
+                "road_work": "Approved road work",
+                "road_opening": "Planned road opening",
+                "planned_bus_route": "Planned bus-route change",
+            }[category]
+            event_id = str(item.get("EventID") or item.get("ServiceNo") or f"{category}-{index}")
+            return {
+                "id": event_id,
+                "category": category,
+                "title": f"{label}: {location or event_id}",
+                "startDate": item.get("StartDate") or item.get("EffectiveDate"),
+                "endDate": item.get("EndDate"),
+                "location": location or None,
+                "detail": detail or None,
+                "affectsJourney": affects,
+                "evidence": self._evidence(
+                    "live_api",
+                    f"Live {category.replace('_', ' ')} record from LTA DataMall; journey impact is a keyword screen and must be confirmed on the map.",
+                ),
+            }
+
+        events = [
+            *(normalize(item, "road_work", index) for index, item in enumerate(road_works)),
+            *(normalize(item, "road_opening", index) for index, item in enumerate(road_openings)),
+            *(normalize(item, "planned_bus_route", index) for index, item in enumerate(bus_routes)),
+        ]
+        return sorted(events, key=lambda event: (not event["affectsJourney"], event.get("startDate") or ""))[:12]
 
     @staticmethod
     def _minutes_until(value: Any) -> Optional[int]:

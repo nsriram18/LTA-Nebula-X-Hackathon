@@ -6,6 +6,7 @@ import { COVERED_LINKWAYS, CYCLING_PATHS, STATIONS } from '../data/mockGeospatia
 
 interface MapComponentProps {
   activeRoute: RouteOption | null;
+  comparisonRoute?: RouteOption | null;
   selectedStep: RouteStep | null;
   showShelterLayer: boolean;
   showCyclingLayer: boolean;
@@ -23,6 +24,7 @@ interface MapComponentProps {
 
 export const MapComponent: React.FC<MapComponentProps> = ({
   activeRoute,
+  comparisonRoute,
   selectedStep,
   showShelterLayer,
   showCyclingLayer,
@@ -53,10 +55,11 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       attributionControl: false, // We explicitly embed the exact required attribution
     });
 
-    // Add OpenStreetMap base tile layer
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // CARTO hosts the demo tiles so the app does not send production traffic
+    // to OpenStreetMap's community tile servers. OSM attribution remains visible.
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
       maxZoom: 19,
-      subdomains: ['a', 'b', 'c'],
+      subdomains: ['a', 'b', 'c', 'd'],
     }).addTo(map);
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -155,7 +158,21 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         .addTo(layerGroup);
     }
 
-    // 5. Render Active Route Polyline
+    // 5. Keep the original visible while comparing a recommended route.
+    if (comparisonRoute && comparisonRoute.id !== activeRoute?.id) {
+      comparisonRoute.steps.forEach((step) => {
+        if (step.coordinates.length > 0) {
+          L.polyline(step.coordinates as L.LatLngExpression[], {
+            color: '#64748b',
+            weight: 7,
+            opacity: 0.7,
+            dashArray: '3, 7',
+          }).bindTooltip('Original journey', { direction: 'top' }).addTo(layerGroup);
+        }
+      });
+    }
+
+    // 6. Render Active Route Polyline
     if (activeRoute) {
       const allPoints: [number, number][] = [];
 
@@ -196,7 +213,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       }
     }
 
-    // 6. Highlight selected step if commuter taps a timeline item
+    // 7. Highlight selected step if commuter taps a timeline item
     if (selectedStep && selectedStep.coordinates.length > 0) {
       L.polyline(selectedStep.coordinates as L.LatLngExpression[], {
         color: '#facc15', // bright yellow highlight
@@ -205,7 +222,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       }).addTo(layerGroup);
     }
 
-    // 7. Station & Origin/Destination Markers
+    // 8. Station & Origin/Destination Markers
     // Parameter-driven origin
     const originIcon = L.divIcon({
       className: 'custom-map-icon',
@@ -250,7 +267,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         className: 'custom-stn-icon',
         html: `
           <div class="flex flex-col items-center group cursor-pointer">
-            <div class="px-1.5 py-0.5 rounded-full ${badgeColor} text-white font-bold text-[10px] shadow border border-white tracking-wider">
+            <div class="px-1.5 py-0.5 rounded-full ${badgeColor} text-white font-bold text-xs shadow border border-white tracking-wider">
               ${stn.code} ${badgeText}
             </div>
             <div class="w-2.5 h-2.5 rounded-full bg-slate-900 border-2 border-white -mt-0.5"></div>
@@ -264,7 +281,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         .bindPopup(`<b>${stn.name} (${stn.code})</b><br/>Line: ${stn.line}<br/>REFERENCE station marker${isDisrupted ? '<br/>SIMULATION disruption overlay' : ''}`)
         .addTo(layerGroup);
     });
-  }, [activeRoute, selectedStep, showShelterLayer, showCyclingLayer, showStations, isRaining, isDisrupted, isMotorcycleMode, speedBands, profile]);
+  }, [activeRoute, comparisonRoute, selectedStep, showShelterLayer, showCyclingLayer, showStations, isRaining, isDisrupted, isMotorcycleMode, speedBands, profile]);
 
   return (
     <div className="relative w-full h-full">
@@ -281,23 +298,23 @@ export const MapComponent: React.FC<MapComponentProps> = ({
               { label: 'Cycling paths', active: showCyclingLayer, onClick: onToggleCyclingLayer, icon: Bike, color: 'text-cyan-400' },
               { label: 'Reference stations', active: showStations, onClick: onToggleStations, icon: TrainFront, color: 'text-pink-400' },
             ].map(({ label, active, onClick, icon: Icon, color }) => (
-              <button key={label} onClick={onClick} className="flex min-h-10 w-full items-center justify-between rounded-xl px-2 text-left text-xs text-slate-300 hover:bg-slate-800">
+              <button key={label} onClick={onClick} className="flex min-h-11 w-full items-center justify-between rounded-xl px-2 text-left text-xs text-slate-300 hover:bg-slate-800">
                 <span className="flex items-center gap-2"><Icon className={`h-4 w-4 ${color}`}/>{label}</span>
                 <span className={`h-5 w-9 rounded-full p-0.5 ${active ? 'bg-cyan-500' : 'bg-slate-700'}`}><span className={`block h-4 w-4 rounded-full bg-white transition-transform ${active ? 'translate-x-4' : ''}`}/></span>
               </button>
             ))}
-            <p className="mt-2 border-t border-slate-800 pt-2 text-[9px] leading-relaxed text-slate-500">These are reference overlays, not live coverage.</p>
+            <p className="mt-2 border-t border-slate-800 pt-2 text-xs leading-relaxed text-slate-400">These are reference overlays, not live coverage.</p>
           </div>
         )}
-        <button onClick={fitActiveRoute} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700 bg-slate-900/90 text-slate-200 shadow-lg" aria-label="Recenter active route"><LocateFixed className="h-4 w-4"/></button>
+        <button onClick={fitActiveRoute} className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-700 bg-slate-900/90 text-slate-200 shadow-lg" aria-label="Recenter active route"><LocateFixed className="h-4 w-4"/></button>
       </div>
 
       {/* Mandatory Exact Attribution as required by PS2 Section 2.3 */}
       <div
         id="osm-attribution-badge"
-        className="absolute bottom-2 left-2 z-[400] bg-slate-900/90 backdrop-blur-xs text-slate-400 text-[10px] px-2 py-0.5 rounded shadow border border-slate-700 select-none pointer-events-auto"
+        className="absolute bottom-2 left-2 z-[400] bg-slate-900/90 backdrop-blur-xs text-slate-300 text-xs px-2 py-1 rounded shadow border border-slate-700 select-none pointer-events-auto"
       >
-        © OpenStreetMap contributors
+        © OpenStreetMap contributors · © CARTO
       </div>
 
     </div>

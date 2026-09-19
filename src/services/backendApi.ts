@@ -5,6 +5,8 @@ import {
   RoutePlanResult,
   RouteRequest,
   ScenarioOptions,
+  PlannedEvent,
+  ProactiveNotificationPayload,
 } from '../types';
 import { apiQuery, apiRequest } from './apiClient';
 
@@ -57,6 +59,16 @@ export const backendApi = {
   getRainfall: () => apiRequest<Array<Record<string, unknown>>>('/api/weather/rainfall'),
   getSpeedBands: () => apiRequest<RawSpeedBand[]>('/api/speed-bands'),
 
+  getPlannedEvents: (originAddress: string, destinationAddress: string) =>
+    apiRequest<PlannedEvent[]>(
+      `/api/planned-events${apiQuery({ origin_address: originAddress, destination_address: destinationAddress })}`,
+    ),
+
+  getLatestNotification: (commuterId: string) =>
+    apiRequest<{ notification: ProactiveNotificationPayload | null }>(
+      `/api/notifications/latest${apiQuery({ commuter_id: commuterId })}`,
+    ),
+
   calculateRoutes: (request: RouteRequest) =>
     apiRequest<RoutePlanResult>('/api/routes', {
       method: 'POST',
@@ -84,5 +96,11 @@ export const backendApi = {
     apiRequest<{ status: 'cached' | 'error'; cachedAt: string }>(
       `/api/offline-cache${apiQuery({ commuter_id: commuterId })}`,
       { method: 'POST', body: JSON.stringify(cache) },
+    ),
+
+  deleteCommuterData: (commuterId: string) =>
+    apiRequest<{ status: 'deleted'; commuterId: string }>(
+      `/api/data${apiQuery({ commuter_id: commuterId })}`,
+      { method: 'DELETE' },
     ),
 };

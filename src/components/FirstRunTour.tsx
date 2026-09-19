@@ -23,7 +23,7 @@ export const FirstRunTour: React.FC<FirstRunTourProps> = ({ onComplete }) => {
           <button onClick={finish} aria-label="Skip tour" className="p-1 text-slate-400"><X className="h-4 w-4" /></button>
         </div>
         <div className="mt-3 flex items-center justify-between">
-          <span className="text-[10px] font-bold text-slate-500">{index + 1} of {steps.length}</span>
+          <span className="text-xs font-bold text-slate-400">{index + 1} of {steps.length}</span>
           <button onClick={() => index === steps.length - 1 ? finish() : setIndex(index + 1)} className="flex min-h-9 items-center gap-1 rounded-lg bg-cyan-500 px-3 text-xs font-bold text-slate-950">
             {index === steps.length - 1 ? 'Got it' : 'Next'} <ArrowRight className="h-3.5 w-3.5" />
           </button>

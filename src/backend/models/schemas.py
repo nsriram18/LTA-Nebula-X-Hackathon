@@ -106,6 +106,11 @@ class RouteOption(APIModel):
     disruption_avoided: bool = False
     traffic_stress_score: Optional[int] = None
     weather_risk: Optional[str] = "None"
+    condition: Optional[Literal["baseline", "disruption", "rain", "crowd", "planned_event", "motorcycle"]] = None
+    baseline_route_id: Optional[str] = None
+    duration_delta_minutes: Optional[int] = None
+    crowd_comparison: Optional[str] = None
+    uncertainty_note: str = "OneMap supplies a point estimate; live journey-time variability is unavailable."
     provider: Literal["onemap", "estimated_fallback"]
     metric_evidence: Dict[str, MetricEvidence] = Field(default_factory=dict)
 
@@ -132,6 +137,18 @@ class ProactiveNotificationPayload(APIModel):
     free_mitigation_available: Optional[str] = None
     metric_evidence: Dict[str, MetricEvidence] = Field(default_factory=dict)
 
+
+class PlannedEvent(APIModel):
+    id: str
+    category: Literal["road_work", "road_opening", "planned_bus_route"]
+    title: str
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    location: Optional[str] = None
+    detail: Optional[str] = None
+    affects_journey: bool = False
+    evidence: MetricEvidence
+
 class OfflineRouteCache(APIModel):
     cached_at: str
     active_route: RouteOption
@@ -145,6 +162,20 @@ class ProactiveEvaluationResponse(APIModel):
     active_alerts: bool
     weather_alert: bool
     profile: CommuterProfile
+    planned_events: List[PlannedEvent] = Field(default_factory=list)
+
+
+class ScheduledCheckResponse(APIModel):
+    status: Literal["evaluated", "outside_window", "unauthorized"]
+    commuter_id: str
+    evaluated_at: str
+    minutes_until_departure: int
+    notification: Optional[ProactiveNotificationPayload] = None
+
+
+class DeleteDataResponse(APIModel):
+    status: Literal["deleted"]
+    commuter_id: str
 
 
 class ProfileSaveResponse(APIModel):

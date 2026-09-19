@@ -1,1 +1,14 @@
 @import "tailwindcss";
+
+@media (pointer: coarse) {
+  button,
+  input,
+  select,
+  summary {
+    min-height: 44px;
+  }
+
+  button {
+    min-width: 44px;
+  }
+}

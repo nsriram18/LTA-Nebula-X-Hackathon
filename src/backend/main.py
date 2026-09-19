@@ -1,16 +1,20 @@
 """
 ClearPath FastAPI Backend Application
 Handles external API orchestration (LTA DataMall & data.gov.sg), OneMap routing,
-Firestore database integration, and the 45-minute proactive engine background worker.
+Firestore persistence and an OIDC-protected endpoint for scheduled proactive checks.
 """
 
 import os
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from dotenv import find_dotenv, load_dotenv
+from google.auth.transport import requests as google_auth_requests
+from google.oauth2 import id_token
 
 # Load the nearest ignored .env file for local development. Cloud Run injects
 # environment variables directly, so this is a no-op in production.
@@ -24,6 +28,8 @@ from models.schemas import (
     OfflineRouteCache,
     RoutePlanResponse,
     RouteRequest,
+    DeleteDataResponse,
+    ScheduledCheckResponse,
 )
 from database.firestore_client import db
 from services.lta_service import lta_service
@@ -105,6 +111,11 @@ async def get_traffic_speed_bands():
     return await lta_service.get_traffic_speed_bands()
 
 
+@app.get("/api/planned-events")
+async def get_planned_events(origin_address: str = "", destination_address: str = ""):
+    return await lta_service.get_planned_events(origin_address, destination_address)
+
+
 @app.post(
     "/api/routes",
     response_model=RoutePlanResponse,
@@ -158,6 +169,80 @@ async def cache_offline_route(cache: OfflineRouteCache, commuter_id: str = "comm
 async def get_offline_cache(commuter_id: str = "commuter-arjun-01"):
     cached = db.get_cached_offline_route(commuter_id)
     return OfflineRouteCache(**cached) if cached else None
+
+
+@app.get("/api/notifications/latest")
+async def get_latest_notification(commuter_id: str = "commuter-arjun-01"):
+    stored = db.get_notification(commuter_id)
+    return {"notification": stored.get("notification") if stored else None}
+
+
+@app.post(
+    "/api/scheduled-check",
+    response_model=ScheduledCheckResponse,
+    response_model_by_alias=True,
+)
+async def scheduled_check(
+    commuter_id: str = "commuter-arjun-01",
+    authorization: str = Header(default=""),
+):
+    expected_audience = os.getenv("APP_URL", "").rstrip("/")
+    expected_service_account = os.getenv("SCHEDULER_SERVICE_ACCOUNT", "")
+    if not authorization.startswith("Bearer ") or not expected_audience or not expected_service_account:
+        raise HTTPException(status_code=401, detail="Missing scheduler identity")
+    try:
+        claims = id_token.verify_oauth2_token(
+            authorization.removeprefix("Bearer "),
+            google_auth_requests.Request(),
+            audience=expected_audience,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=401, detail="Invalid scheduler identity") from error
+    if claims.get("email") != expected_service_account:
+        raise HTTPException(status_code=403, detail="Unexpected scheduler identity")
+
+    profile = db.get_commuter_profile(commuter_id)
+    now = datetime.now(ZoneInfo("Asia/Singapore"))
+    hour, minute = (int(value) for value in profile.scheduled_departure_time.split(":"))
+    departure = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    minutes_until = round((departure - now).total_seconds() / 60)
+    if minutes_until < 0:
+        minutes_until += 24 * 60
+    if abs(minutes_until - profile.notification_lead_time_minutes) > 2:
+        return ScheduledCheckResponse(
+            status="outside_window",
+            commuter_id=commuter_id,
+            evaluated_at=now.isoformat(),
+            minutes_until_departure=minutes_until,
+        )
+
+    result = await proactive_engine.evaluate_commute(profile)
+    if result.payload:
+        db.save_notification(
+            commuter_id,
+            {
+                "storedAt": now.isoformat(),
+                "expiresAt": departure.isoformat(),
+                "notification": result.payload.model_dump(by_alias=True),
+            },
+        )
+    return ScheduledCheckResponse(
+        status="evaluated",
+        commuter_id=commuter_id,
+        evaluated_at=now.isoformat(),
+        minutes_until_departure=minutes_until,
+        notification=result.payload,
+    )
+
+
+@app.delete(
+    "/api/data",
+    response_model=DeleteDataResponse,
+    response_model_by_alias=True,
+)
+async def delete_commuter_data(commuter_id: str = "commuter-arjun-01"):
+    db.delete_commuter_data(commuter_id)
+    return DeleteDataResponse(status="deleted", commuter_id=commuter_id)
 
 
 STATIC_DIR = (Path(__file__).resolve().parent / "static").resolve()
