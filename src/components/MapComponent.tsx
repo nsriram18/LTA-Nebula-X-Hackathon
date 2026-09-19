@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
-import { RouteOption, RouteStep, TrafficSpeedBand } from '../types';
-import { COVERED_LINKWAYS, CYCLING_PATHS, STATIONS, PUNGGOL_ORIGIN, ONE_NORTH_DEST } from '../data/mockGeospatial';
+import { CommuterProfile, RouteOption, RouteStep, TrafficSpeedBand } from '../types';
+import { COVERED_LINKWAYS, CYCLING_PATHS, STATIONS } from '../data/mockGeospatial';
 
 interface MapComponentProps {
   activeRoute: RouteOption | null;
@@ -12,6 +12,7 @@ interface MapComponentProps {
   isDisrupted: boolean;
   isMotorcycleMode: boolean;
   speedBands?: TrafficSpeedBand[];
+  profile: CommuterProfile;
   onSelectStation?: (stationName: string) => void;
 }
 
@@ -24,6 +25,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   isDisrupted,
   isMotorcycleMode,
   speedBands = [],
+  profile,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -123,8 +125,8 @@ export const MapComponent: React.FC<MapComponentProps> = ({
 
     // 4. Render Rain Cell overlay if raining
     if (isRaining) {
-      // Rain radar circle over Punggol region
-      L.circle([1.4024, 103.9068], {
+      // Rain radar circle over the configured origin.
+      L.circle([profile.homeCoords.lat, profile.homeCoords.lng], {
         radius: 2500,
         color: '#3b82f6',
         fillColor: '#60a5fa',
@@ -186,26 +188,34 @@ export const MapComponent: React.FC<MapComponentProps> = ({
     }
 
     // 7. Station & Origin/Destination Markers
-    // Origin (Punggol)
+    // Parameter-driven origin
     const originIcon = L.divIcon({
       className: 'custom-map-icon',
       html: `<div class="w-8 h-8 rounded-full bg-cyan-500 border-2 border-white shadow-lg flex items-center justify-center text-white text-xs font-bold ring-4 ring-cyan-500/30">🚴</div>`,
       iconSize: [32, 32],
       iconAnchor: [16, 16],
     });
-    L.marker([PUNGGOL_ORIGIN.lat, PUNGGOL_ORIGIN.lng], { icon: originIcon })
-      .bindPopup(`<b>Origin: Arjun's Home</b><br/>${PUNGGOL_ORIGIN.address}`)
+    const originPopup = document.createElement('div');
+    const originTitle = document.createElement('strong');
+    originTitle.textContent = 'Origin';
+    originPopup.append(originTitle, document.createElement('br'), document.createTextNode(profile.homeAddress));
+    L.marker([profile.homeCoords.lat, profile.homeCoords.lng], { icon: originIcon })
+      .bindPopup(originPopup)
       .addTo(layerGroup);
 
-    // Destination (one-north Fusionopolis)
+    // Parameter-driven destination
     const destIcon = L.divIcon({
       className: 'custom-map-icon',
       html: `<div class="w-8 h-8 rounded-full bg-rose-500 border-2 border-white shadow-lg flex items-center justify-center text-white text-xs font-bold ring-4 ring-rose-500/30">🏢</div>`,
       iconSize: [32, 32],
       iconAnchor: [16, 16],
     });
-    L.marker([ONE_NORTH_DEST.lat, ONE_NORTH_DEST.lng], { icon: destIcon })
-      .bindPopup(`<b>Destination: Office</b><br/>${ONE_NORTH_DEST.address}`)
+    const destinationPopup = document.createElement('div');
+    const destinationTitle = document.createElement('strong');
+    destinationTitle.textContent = 'Destination';
+    destinationPopup.append(destinationTitle, document.createElement('br'), document.createTextNode(profile.officeAddress));
+    L.marker([profile.officeCoords.lat, profile.officeCoords.lng], { icon: destIcon })
+      .bindPopup(destinationPopup)
       .addTo(layerGroup);
 
     // Transit Stations with Crowd Badges
@@ -239,7 +249,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         .bindPopup(`<b>${stn.name} (${stn.code})</b><br/>Line: ${stn.line}<br/>Crowd Forecast: ${badgeText === 'L' ? 'Low' : badgeText === 'M' ? 'Moderate' : 'High'}`)
         .addTo(layerGroup);
     });
-  }, [activeRoute, selectedStep, showShelterLayer, showCyclingLayer, isRaining, isDisrupted, isMotorcycleMode, speedBands]);
+  }, [activeRoute, selectedStep, showShelterLayer, showCyclingLayer, isRaining, isDisrupted, isMotorcycleMode, speedBands, profile]);
 
   return (
     <div className="relative w-full h-full">
@@ -258,7 +268,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       <div className="absolute top-3 left-3 z-[400] bg-slate-900/90 backdrop-blur-md px-3 py-2 rounded-xl border border-slate-700/80 shadow-lg text-xs space-y-1.5 pointer-events-auto max-w-[220px]">
         <div className="flex items-center justify-between text-[11px] font-semibold text-slate-300">
           <span>Active Route</span>
-          <span className="text-cyan-400 font-mono">Punggol → one-north</span>
+          <span className="text-cyan-400 font-mono truncate max-w-[130px]">{profile.homeAddress} → {profile.officeAddress}</span>
         </div>
         <div className="grid grid-cols-2 gap-1.5 text-[10px] text-slate-400">
           <div className="flex items-center gap-1.5">

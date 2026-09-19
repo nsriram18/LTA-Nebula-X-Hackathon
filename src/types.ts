@@ -112,9 +112,30 @@ export interface CommuterProfile {
   bringBicycle: boolean;
   prioritizeShelter: boolean;
   prioritizeLowCrowd: boolean;
+  preferredTravelMode: Exclude<RouteTravelMode, 'motorcycle'>;
   motorcycleMode: boolean;
   motorcycleModel?: string; // e.g. "Yamaha XSR155 (Manual)"
   minimizeClutchFatigue?: boolean;
+}
+
+export type RouteTravelMode = 'transit' | 'bus' | 'rail' | 'walk' | 'cycle' | 'drive' | 'motorcycle';
+
+export interface RouteRequest {
+  origin: GeoCoordinate;
+  destination: GeoCoordinate;
+  originAddress: string;
+  destinationAddress: string;
+  departureTime: string;
+  travelMode: RouteTravelMode;
+  maxWalkDistance?: number;
+  numItineraries?: number;
+  prioritizeShelter?: boolean;
+  prioritizeLowCrowd?: boolean;
+}
+
+export interface RoutePlanResult {
+  routes: RouteOption[];
+  provider: 'onemap' | 'fallback';
 }
 
 export interface ProactiveNotificationPayload {

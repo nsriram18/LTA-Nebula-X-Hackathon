@@ -22,11 +22,14 @@ from models.schemas import (
     ProactiveEvaluationResponse,
     ProfileSaveResponse,
     OfflineRouteCache,
+    RoutePlanResponse,
+    RouteRequest,
 )
 from database.firestore_client import db
 from services.lta_service import lta_service
 from services.weather_service import weather_service
 from services.proactive_engine import proactive_engine
+from services.routing_service import routing_service
 
 app = FastAPI(
     title="ClearPath Proactive Commuter Companion API",
@@ -101,20 +104,35 @@ async def get_rainfall():
 async def get_traffic_speed_bands():
     return await lta_service.get_traffic_speed_bands()
 
+
+@app.post(
+    "/api/routes",
+    response_model=RoutePlanResponse,
+    response_model_by_alias=True,
+)
+async def calculate_routes(request: RouteRequest):
+    """Calculate routes from explicit origin, destination, time, and preferences."""
+    crowd = await lta_service.get_station_crowd_forecast(
+        "NEL", request.departure_time
+    )
+    routes, provider = await routing_service.plan_route(request, crowd)
+    return RoutePlanResponse(routes=routes, provider=provider)
+
 @app.post(
     "/api/proactive-check",
     response_model=ProactiveEvaluationResponse,
     response_model_by_alias=True,
 )
 async def run_proactive_check(
+    profile: CommuterProfile | None = None,
     replay_disruption: bool = Query(False),
     simulated_rain: bool = Query(False),
     simulated_crowd: bool = Query(False),
     commuter_id: str = "commuter-arjun-01",
 ):
-    profile = db.get_commuter_profile(commuter_id)
+    active_profile = profile or db.get_commuter_profile(commuter_id)
     return await proactive_engine.evaluate_commute(
-        profile,
+        active_profile,
         replay_disruption=replay_disruption,
         simulated_rain=simulated_rain,
         simulated_crowd=simulated_crowd,

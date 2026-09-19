@@ -23,6 +23,7 @@ export const DEFAULT_ARJUN_PROFILE: CommuterProfile = {
   bringBicycle: true,
   prioritizeShelter: true,
   prioritizeLowCrowd: true,
+  preferredTravelMode: 'transit',
   motorcycleMode: false,
   motorcycleModel: 'Yamaha XSR155 (Manual 6-Speed)',
   minimizeClutchFatigue: true,

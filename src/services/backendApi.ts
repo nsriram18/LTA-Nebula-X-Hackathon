@@ -2,6 +2,8 @@ import {
   CommuterProfile,
   OfflineRouteCache,
   ProactiveEvaluationResult,
+  RoutePlanResult,
+  RouteRequest,
   ScenarioOptions,
 } from '../types';
 import { apiQuery, apiRequest } from './apiClient';
@@ -55,15 +57,22 @@ export const backendApi = {
   getRainfall: () => apiRequest<Array<Record<string, unknown>>>('/api/weather/rainfall'),
   getSpeedBands: () => apiRequest<RawSpeedBand[]>('/api/speed-bands'),
 
-  evaluate: (commuterId: string, options: ScenarioOptions) =>
+  calculateRoutes: (request: RouteRequest) =>
+    apiRequest<RoutePlanResult>('/api/routes', {
+      method: 'POST',
+      body: JSON.stringify(request),
+      timeoutMs: 20_000,
+    }),
+
+  evaluate: (profile: CommuterProfile, options: ScenarioOptions) =>
     apiRequest<ProactiveEvaluationResult>(
       `/api/proactive-check${apiQuery({
-        commuter_id: commuterId,
+        commuter_id: profile.id,
         replay_disruption: options.replayDisruption,
         simulated_rain: options.simulatedRain,
         simulated_crowd: options.simulatedCrowd,
       })}`,
-      { method: 'POST', timeoutMs: 20_000 },
+      { method: 'POST', body: JSON.stringify(profile), timeoutMs: 20_000 },
     ),
 
   getOfflineCache: (commuterId: string) =>

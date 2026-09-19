@@ -18,8 +18,26 @@ class APIModel(BaseModel):
 
 
 class GeoCoordinate(APIModel):
-    lat: float
-    lng: float
+    lat: float = Field(ge=1.13, le=1.48)
+    lng: float = Field(ge=103.59, le=104.10)
+
+
+class RouteRequest(APIModel):
+    """Parameters required to calculate a route anywhere in Singapore."""
+
+    origin: GeoCoordinate
+    destination: GeoCoordinate
+    origin_address: str = Field(default="Origin", min_length=1, max_length=160)
+    destination_address: str = Field(default="Destination", min_length=1, max_length=160)
+    departure_time: str = Field(default="08:30", pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$")
+    travel_mode: Literal[
+        "transit", "bus", "rail", "walk", "cycle", "drive", "motorcycle"
+    ] = "transit"
+    max_walk_distance: int = Field(default=1000, ge=100, le=5000)
+    num_itineraries: int = Field(default=2, ge=1, le=3)
+    prioritize_shelter: bool = False
+    prioritize_low_crowd: bool = False
+
 
 class CommuterProfile(APIModel):
     id: str = Field(default="commuter-arjun-01")
@@ -35,6 +53,7 @@ class CommuterProfile(APIModel):
     bring_bicycle: bool = True
     prioritize_shelter: bool = True
     prioritize_low_crowd: bool = True
+    preferred_travel_mode: Literal["transit", "bus", "rail", "walk", "cycle", "drive"] = "transit"
     motorcycle_mode: bool = False
     motorcycle_model: Optional[str] = "Yamaha XSR155 (Manual 6-Speed)"
     minimize_clutch_fatigue: bool = True
@@ -78,6 +97,11 @@ class RouteOption(APIModel):
     disruption_avoided: bool = False
     traffic_stress_score: Optional[int] = None
     weather_risk: Optional[str] = "None"
+
+
+class RoutePlanResponse(APIModel):
+    routes: List[RouteOption]
+    provider: Literal["onemap", "fallback"]
 
 class ProactiveNotificationPayload(APIModel):
     id: str

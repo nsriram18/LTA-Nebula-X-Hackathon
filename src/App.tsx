@@ -269,6 +269,7 @@ export default function App() {
           isDisrupted={isDisruptionReplay}
           isMotorcycleMode={profile.motorcycleMode}
           speedBands={speedBands}
+          profile={profile}
         />
       </div>
 

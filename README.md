@@ -166,6 +166,15 @@ the backend, with the former browser routing engine retained only as an offline
 fallback. Scenario controls are sent to `/api/proactive-check` as explicit
 disruption, rain, and crowd simulation parameters.
 
+`POST /api/routes` performs parameter-driven routing. It accepts an explicit
+Singapore origin and destination, departure time, travel mode, maximum walking
+distance, itinerary count, and comfort preferences. OneMap public-transport
+legs or path geometry are normalized into the route/step contract used by the
+React map. If OneMap is temporarily unavailable, the response is marked
+`provider: "fallback"` and returns a coordinate-derived estimate instead of a
+fixed demo journey. Proactive evaluations also send the current profile in the
+request body, so newly edited journey parameters are used immediately.
+
 For local frontend development, either retain the production API URL or set a
 local override in the ignored `.env` file:
 

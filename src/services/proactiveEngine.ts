@@ -30,7 +30,7 @@ class ProactiveEngine {
     },
   ): Promise<ProactiveEvaluationResult> {
     try {
-      return await backendApi.evaluate(profile.id, options);
+      return await backendApi.evaluate(profile, options);
     } catch (error) {
       console.warn('Backend proactive evaluation unavailable, using offline engine:', error);
     }
