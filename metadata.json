@@ -1,0 +1,6 @@
+{
+  "name": "ClearPath",
+  "description": "Proactive mobile-first commuter companion for multi-modal travel, crowd avoidance, and disruption mitigation.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
