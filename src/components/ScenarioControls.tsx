@@ -62,7 +62,7 @@ export const ScenarioControls: React.FC<ScenarioControlsProps> = ({
           title="Run 45-min background proactive evaluation"
         >
           <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
-          <span>Run 45-Min Check</span>
+          <span>Run Proactive Check</span>
         </button>
       </div>
 

@@ -40,9 +40,8 @@ class OfflineStorageManager {
         activeRoute: route,
         profile,
         offlineNotes: [
-          'Signal offline: Using verified cached itinerary.',
-          'Interchange transfer: Circle Line cross-platform at Serangoon (B2).',
-          'Exit A at one-north connects directly to Fusionopolis basement concourse.',
+          'CACHED SNAPSHOT: route values are not current while offline.',
+          'Verify station signs and live service conditions when connectivity returns.',
         ],
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(cache));

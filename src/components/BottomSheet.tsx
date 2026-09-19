@@ -232,8 +232,8 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
           <div className="bg-rose-950/40 border border-rose-800/60 rounded-xl p-2.5 flex items-start gap-2 text-xs text-rose-200">
             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold">Train Disruption Alert: </span>
-              LTA TrainServiceAlert active on Punggol LRT. Free public buses and MRT shuttle bridging buses active.
+              <span className="font-bold">SIMULATION — Train Disruption Replay: </span>
+              Judge-controlled Punggol LRT fixture with free-service mitigation fields.
             </div>
           </div>
         )}
@@ -242,8 +242,8 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
           <div className="bg-blue-950/40 border border-blue-800/60 rounded-xl p-2.5 flex items-start gap-2 text-xs text-blue-200">
             <CloudRain className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold">data.gov.sg Weather Warning: </span>
-              Heavy rain cell over Punggol cycling route. Covered linkway alternative active.
+              <span className="font-bold">SIMULATION — Heavy Rain: </span>
+              Judge-controlled 18.4 mm/h value near the configured origin; not a live observation.
             </div>
           </div>
         )}
@@ -298,16 +298,21 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
                         </span>
                       )}
                       {step.crowdLevel && getCrowdBadge(step.crowdLevel)}
+                      {step.crowdLevel && <EvidenceBadge evidence={step.metricEvidence?.crowdLevel} cached={isUndergroundOffline} />}
                       {step.busLoad && getBusLoadBadge(step.busLoad)}
+                      {step.busLoad && <EvidenceBadge evidence={step.metricEvidence?.busLoad} cached={isUndergroundOffline} />}
                       {step.freeMitigation && (
                         <span className="text-[10px] font-bold bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded border border-amber-500/40">
                           {step.freeMitigation === 'FreeMRTShuttle' ? 'Free MRT Shuttle' : 'Free Public Bus'}
                         </span>
                       )}
                       {step.busServiceNo && (
-                        <span className="text-[10px] bg-slate-700 text-slate-200 px-1.5 py-0.5 rounded font-mono">
-                          Bus {step.busServiceNo} ({step.busType || 'DD'})
-                        </span>
+                        <>
+                          <span className="text-[10px] bg-slate-700 text-slate-200 px-1.5 py-0.5 rounded font-mono">
+                            Bus {step.busServiceNo}{step.busType ? ` (${step.busType})` : ''}
+                          </span>
+                          <EvidenceBadge evidence={step.metricEvidence?.busServiceNo} cached={isUndergroundOffline} />
+                        </>
                       )}
                     </div>
                   </div>

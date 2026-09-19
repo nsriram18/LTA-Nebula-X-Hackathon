@@ -74,7 +74,7 @@ class LTAService:
                 if res.status_code == 200:
                     val = res.json().get("value", {})
                     return {
-                        "Status": val.get("Status", 1),
+                        "Status": val.get("Status", 0),
                         "AffectedSegments": val.get("AffectedSegments", []),
                         "Message": val.get("Message", []),
                         "_evidence": self._evidence("live_api", "Live TrainServiceAlerts response."),
@@ -103,10 +103,14 @@ class LTAService:
                 )
                 if res.status_code == 200:
                     items = res.json().get("value", [])
-                    for it in items:
+                    matching_items = [
+                        it for it in items
+                        if time_slot in str(it.get("Start", ""))
+                    ]
+                    for it in matching_items:
                         if it.get("Station") and it.get("CrowdLevel"):
                             crowd_map[it["Station"]] = it["CrowdLevel"].lower()
-                    crowd_map["_evidence"] = self._evidence("live_api", f"Live PCDForecast response for {crowd_code}; requested slot {time_slot}.")
+                    crowd_map["_evidence"] = self._evidence("live_api", f"Live PCDForecast records for {crowd_code} matching slot {time_slot}; no value is inferred when the slot is absent.")
                     return crowd_map
             except Exception:
                 pass

@@ -229,6 +229,8 @@ class RoutingService:
                             "durationMinutes": self._evidence("OneMap Routing API", "live_api", "Leg duration returned by OneMap.", self.ONEMAP_URL),
                             "distanceMeters": self._evidence("OneMap Routing API", "live_api", "Leg distance returned by OneMap.", self.ONEMAP_URL),
                             "coordinates": self._evidence("OneMap Routing API", "live_api", "Decoded OneMap leg geometry.", self.ONEMAP_URL),
+                            **({"crowdLevel": self._crowd_evidence(crowd)} if mode in {"mrt", "lrt"} else {}),
+                            **({"busServiceNo": self._evidence("OneMap Routing API", "live_api", "Bus service identifier returned for this leg.", self.ONEMAP_URL)} if mode == "bus" and leg.get("route") else {}),
                         },
                     )
                 )

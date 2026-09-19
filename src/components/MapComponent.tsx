@@ -118,7 +118,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
             opacity: 0.85,
           }
         )
-          .bindPopup(`<b>${band.RoadName}</b><br/>Speed Band ${band.SpeedBand} (${band.MinimumSpeed}-${band.MaximumSpeed} km/h)<br/>${isCongested ? '⚠️ Severe Stop-and-Go (Clutch Slip)' : '✅ Free Flowing'}`)
+          .bindPopup(`<b>${band.RoadName}</b><br/>LIVE API — LTA TrafficSpeedBands<br/>Speed Band ${band.SpeedBand} (${band.MinimumSpeed}-${band.MaximumSpeed} km/h)<br/>${isCongested ? 'Congested speed band' : 'Higher speed band'}`)
           .addTo(layerGroup);
       });
     }
@@ -218,17 +218,14 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       .bindPopup(destinationPopup)
       .addTo(layerGroup);
 
-    // Transit Stations with Crowd Badges
+    // Reference station markers. No crowd value is inferred for static markers.
     Object.values(STATIONS).forEach((stn) => {
-      let badgeColor = 'bg-emerald-500';
-      let badgeText = 'L';
+      let badgeColor = 'bg-slate-600';
+      let badgeText = 'REF';
 
       if (isDisrupted && (stn.code.includes('PE') || stn.code.includes('PTC'))) {
         badgeColor = 'bg-rose-500 animate-pulse';
-        badgeText = 'ALERT';
-      } else if (stn.code.includes('NE17') || stn.code.includes('PE7')) {
-        badgeColor = 'bg-amber-500';
-        badgeText = 'M';
+        badgeText = 'SIM';
       }
 
       const stnIcon = L.divIcon({
@@ -246,7 +243,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       });
 
       L.marker([stn.lat, stn.lng], { icon: stnIcon })
-        .bindPopup(`<b>${stn.name} (${stn.code})</b><br/>Line: ${stn.line}<br/>Crowd Forecast: ${badgeText === 'L' ? 'Low' : badgeText === 'M' ? 'Moderate' : 'High'}`)
+        .bindPopup(`<b>${stn.name} (${stn.code})</b><br/>Line: ${stn.line}<br/>REFERENCE station marker${isDisrupted ? '<br/>SIMULATION disruption overlay' : ''}`)
         .addTo(layerGroup);
     });
   }, [activeRoute, selectedStep, showShelterLayer, showCyclingLayer, isRaining, isDisrupted, isMotorcycleMode, speedBands, profile]);
@@ -273,7 +270,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         <div className="grid grid-cols-2 gap-1.5 text-[10px] text-slate-400">
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-1 bg-cyan-400 rounded-full"></span>
-            <span>Cycle / PCN</span>
+            <span>Cycling mode</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-1 bg-pink-500 rounded-full"></span>

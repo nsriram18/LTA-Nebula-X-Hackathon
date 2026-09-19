@@ -44,7 +44,7 @@ export const ProactiveNotification: React.FC<ProactiveNotificationProps> = ({
           <div className="flex items-center justify-between gap-2 mb-1">
             <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${badgeColor}`}>
               <Clock className="w-3 h-3" />
-              45-Min Proactive Notice • {payload.timestamp}
+              Proactive Notice • {payload.timestamp}
               <EvidenceBadge evidence={payload.metricEvidence?.scheduledTime} />
             </span>
             <button
