@@ -17,7 +17,7 @@ The product makes one decision before he leaves: keep the original journey, take
 - Cloud Run serves the frontend and API from one origin.
 - Cloud Scheduler calls an OIDC-protected endpoint every five minutes. The endpoint evaluates a profile only inside a ±2-minute window around its configured notification lead time.
 
-The browser also stores the profile and most recent active journey in `localStorage`. The service worker caches the application shell and CARTO-hosted OpenStreetMap tiles that have already been viewed.
+The browser also stores the profile and most recent active journey in `localStorage`. The service worker caches the application shell, but deliberately leaves third-party basemap tiles to normal browser/network handling.
 
 ## 3. Decision logic
 
@@ -51,7 +51,7 @@ When tunnel mode is enabled or connectivity is lost, ClearPath loads the last ac
 - When a recommendation is selected, the original route remains visible as a grey dashed line while the recommended route uses mode-specific high-contrast styling.
 - The comparison card presents time difference, changed mode or avoided segment and crowd comparison in text, so meaning does not depend on colour.
 - Important controls are at least 44 by 44 CSS pixels and primary labels are at least 12px.
-- OpenStreetMap attribution is always visible as `© OpenStreetMap contributors`; demo tiles are delivered by CARTO rather than the community OSM tile servers.
+- The official OneMap basemap is used directly, with the required OneMap contributors and Singapore Land Authority attribution always visible.
 - Onboarding explains the journey header, expandable route sheet and optional Demo Lab.
 
 ## 5. Evidence and reproducibility
@@ -92,8 +92,7 @@ The privacy control deletes the profile, offline route and notification from Fir
 
 ## 8. Source licences and attribution
 
-- Map data: OpenStreetMap contributors, under the Open Database License; attribution is visible in the map.
-- Map tiles: CARTO basemap service, with CARTO attribution visible beside the OSM attribution.
+- Map data and tiles: OneMap, with the required OneMap contributors and Singapore Land Authority attribution visible on the map.
 - Transport data: LTA DataMall under its API terms and Singapore Open Data Licence conditions.
 - Weather: data.gov.sg under the Singapore Open Data Licence.
 - Routing: OneMap API, subject to OneMap terms.

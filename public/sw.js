@@ -2,7 +2,7 @@
  * ClearPath Service Worker for Offline Underground Resilience
  */
 
-const CACHE_NAME = 'clearpath-v3';
+const CACHE_NAME = 'clearpath-v4';
 const STATIC_ASSETS = [
   '/index.html',
   '/metadata.json',
@@ -52,7 +52,9 @@ self.addEventListener('fetch', (event) => {
 
   if (url.pathname.startsWith('/api/')) return;
 
-  if (url.origin === location.origin || url.hostname.includes('basemaps.cartocdn.com')) {
+  // Cache only ClearPath's own application shell. Third-party basemap tiles
+  // remain network-managed and are never stored for offline redistribution.
+  if (url.origin === location.origin) {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         if (cachedResponse) {

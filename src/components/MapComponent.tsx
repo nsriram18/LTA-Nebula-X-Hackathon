@@ -55,11 +55,12 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       attributionControl: false, // We explicitly embed the exact required attribution
     });
 
-    // CARTO hosts the demo tiles so the app does not send production traffic
-    // to OpenStreetMap's community tile servers. OSM attribution remains visible.
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    // OneMap publishes this keyless XYZ basemap for Singapore applications.
+    // Routing remains separately authenticated by the backend.
+    L.tileLayer('https://www.onemap.gov.sg/maps/tiles/Default/{z}/{x}/{y}.png', {
+      detectRetina: true,
+      minZoom: 11,
       maxZoom: 19,
-      subdomains: ['a', 'b', 'c', 'd'],
     }).addTo(map);
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -309,12 +310,15 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         <button onClick={fitActiveRoute} className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-700 bg-slate-900/90 text-slate-200 shadow-lg" aria-label="Recenter active route"><LocateFixed className="h-4 w-4"/></button>
       </div>
 
-      {/* Mandatory Exact Attribution as required by PS2 Section 2.3 */}
+      {/* Mandatory attribution required by the OneMap basemap terms. */}
       <div
-        id="osm-attribution-badge"
-        className="absolute bottom-2 left-2 z-[400] bg-slate-900/90 backdrop-blur-xs text-slate-300 text-xs px-2 py-1 rounded shadow border border-slate-700 select-none pointer-events-auto"
+        id="onemap-attribution-badge"
+        className="absolute bottom-2 left-2 z-[400] flex items-center gap-1 bg-slate-900/90 backdrop-blur-xs text-slate-300 text-xs px-2 py-1 rounded shadow border border-slate-700 select-none pointer-events-auto"
       >
-        © OpenStreetMap contributors · © CARTO
+        <img src="https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png" alt="OneMap" className="h-4 w-4" />
+        <a href="https://www.onemap.gov.sg/" target="_blank" rel="noreferrer" className="hover:text-white">OneMap</a>
+        <span>© contributors |</span>
+        <a href="https://www.sla.gov.sg/" target="_blank" rel="noreferrer" className="hover:text-white">Singapore Land Authority</a>
       </div>
 
     </div>
