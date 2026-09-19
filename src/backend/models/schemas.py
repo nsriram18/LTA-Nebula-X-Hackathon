@@ -2,7 +2,7 @@
 Pydantic Schemas for ClearPath FastAPI Backend
 """
 
-from typing import List, Optional, Literal
+from typing import Dict, List, Optional, Literal
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
@@ -37,6 +37,14 @@ class RouteRequest(APIModel):
     num_itineraries: int = Field(default=2, ge=1, le=3)
     prioritize_shelter: bool = False
     prioritize_low_crowd: bool = False
+
+
+class MetricEvidence(APIModel):
+    source: str
+    type: Literal["live_api", "derived", "simulation", "estimated_fallback", "cached", "reference"]
+    detail: str
+    observed_at: Optional[str] = None
+    source_url: Optional[str] = None
 
 
 class CommuterProfile(APIModel):
@@ -76,6 +84,7 @@ class RouteStep(APIModel):
     bus_type: Optional[Literal["SD", "DD", "BD"]] = None
     disruption_alert: Optional[str] = None
     free_mitigation: Optional[str] = None
+    metric_evidence: Dict[str, MetricEvidence] = Field(default_factory=dict)
 
 class RouteOption(APIModel):
     id: str
@@ -86,9 +95,9 @@ class RouteOption(APIModel):
     total_distance_km: float
     departure_time: str
     arrival_time: str
-    crowd_score: Literal["Low", "Moderate", "High"]
-    comfort_score: int
-    sheltered_percentage: int
+    crowd_score: Literal["Low", "Moderate", "High", "Unavailable"]
+    comfort_score: Optional[int] = None
+    sheltered_percentage: Optional[int] = None
     cycling_distance_km: float
     steps: List[RouteStep]
     is_recommended: bool = False
@@ -97,6 +106,8 @@ class RouteOption(APIModel):
     disruption_avoided: bool = False
     traffic_stress_score: Optional[int] = None
     weather_risk: Optional[str] = "None"
+    provider: Literal["onemap", "estimated_fallback"]
+    metric_evidence: Dict[str, MetricEvidence] = Field(default_factory=dict)
 
 
 class RoutePlanResponse(APIModel):
@@ -119,6 +130,7 @@ class ProactiveNotificationPayload(APIModel):
     weather_summary: Optional[str] = None
     crowd_summary: Optional[str] = None
     free_mitigation_available: Optional[str] = None
+    metric_evidence: Dict[str, MetricEvidence] = Field(default_factory=dict)
 
 class OfflineRouteCache(APIModel):
     cached_at: str

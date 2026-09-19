@@ -7,6 +7,16 @@ export type TransportMode = 'cycle' | 'lrt' | 'mrt' | 'bus' | 'walk' | 'motorcyc
 export type CrowdLevel = 'l' | 'm' | 'h' | 'NA'; // Low, Moderate, High
 export type BusLoad = 'SEA' | 'SDA' | 'LSD'; // Seats Available, Standing Available, Limited Standing
 
+export type EvidenceType = 'live_api' | 'derived' | 'simulation' | 'estimated_fallback' | 'cached' | 'reference';
+
+export interface MetricEvidence {
+  source: string;
+  type: EvidenceType;
+  detail: string;
+  observedAt?: string;
+  sourceUrl?: string;
+}
+
 export interface GeoCoordinate {
   lat: number;
   lng: number;
@@ -32,6 +42,7 @@ export interface RouteStep {
   // Alerts & Mitigations
   disruptionAlert?: string;
   freeMitigation?: 'FreePublicBus' | 'FreeMRTShuttle' | null;
+  metricEvidence: Record<string, MetricEvidence>;
 }
 
 export interface RouteOption {
@@ -43,9 +54,9 @@ export interface RouteOption {
   totalDistanceKm: number;
   departureTime: string;
   arrivalTime: string;
-  crowdScore: 'Low' | 'Moderate' | 'High';
-  comfortScore: number; // 0 - 100
-  shelteredPercentage: number; // % covered
+  crowdScore: 'Low' | 'Moderate' | 'High' | 'Unavailable';
+  comfortScore?: number; // only present when a documented model produced it
+  shelteredPercentage?: number; // only present when supported by route data
   cyclingDistanceKm: number;
   steps: RouteStep[];
   isRecommended?: boolean;
@@ -54,6 +65,8 @@ export interface RouteOption {
   disruptionAvoided?: boolean;
   trafficStressScore?: number; // For motorcycle mode
   weatherRisk?: 'None' | 'Moderate Rain' | 'Heavy Rain';
+  provider: 'onemap' | 'estimated_fallback';
+  metricEvidence: Record<string, MetricEvidence>;
 }
 
 export interface TrainAlertSegment {
@@ -154,6 +167,7 @@ export interface ProactiveNotificationPayload {
   weatherSummary?: string;
   crowdSummary?: string;
   freeMitigationAvailable?: string;
+  metricEvidence: Record<string, MetricEvidence>;
 }
 
 export interface OfflineRouteCache {

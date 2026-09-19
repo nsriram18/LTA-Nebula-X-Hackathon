@@ -1,6 +1,7 @@
 import React from 'react';
-import { Gauge, AlertTriangle, ShieldCheck, Zap, Activity, Droplets } from 'lucide-react';
+import { Gauge, Zap, Activity, Droplets } from 'lucide-react';
 import { RouteOption } from '../types';
+import { EvidenceBadge } from './EvidenceBadge';
 
 interface MotorcycleModeSheetProps {
   activeRoute: RouteOption;
@@ -11,8 +12,7 @@ export const MotorcycleModeSheet: React.FC<MotorcycleModeSheetProps> = ({
   activeRoute,
   isRaining,
 }) => {
-  const isSmoothRoute = activeRoute.id === 'moto-route-smooth';
-  const fatigueScore = activeRoute.trafficStressScore || (isSmoothRoute ? 18 : 88);
+  const fatigueScore = activeRoute.trafficStressScore;
 
   return (
     <div
@@ -31,12 +31,10 @@ export const MotorcycleModeSheet: React.FC<MotorcycleModeSheetProps> = ({
         </div>
         <span
           className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-            isSmoothRoute
-              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-              : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+            'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
           }`}
         >
-          {isSmoothRoute ? 'Low Clutch Fatigue' : 'High Fatigue Risk'}
+          ROUTE MODE
         </span>
       </div>
 
@@ -47,12 +45,13 @@ export const MotorcycleModeSheet: React.FC<MotorcycleModeSheetProps> = ({
             <Activity className="w-3.5 h-3.5 text-cyan-400" />
             <span>Clutch Friction Score</span>
           </div>
-          <div className={`text-lg font-bold font-mono ${fatigueScore < 40 ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {fatigueScore} / 100
+          <div className="text-lg font-bold font-mono text-slate-300">
+            {fatigueScore == null ? 'Unavailable' : `${fatigueScore} / 100`}
           </div>
           <div className="text-[9px] text-slate-500 mt-0.5">
-            {isSmoothRoute ? '84 stop-and-go shifts saved' : 'Severe clutch modulation'}
+            No clutch sensor or validated fatigue model is connected.
           </div>
+          <EvidenceBadge evidence={activeRoute.metricEvidence?.trafficStressScore} />
         </div>
 
         <div className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60">
@@ -61,10 +60,10 @@ export const MotorcycleModeSheet: React.FC<MotorcycleModeSheetProps> = ({
             <span>Wet Slip Index</span>
           </div>
           <div className={`text-lg font-bold font-mono ${isRaining ? 'text-amber-400' : 'text-emerald-400'}`}>
-            {isRaining ? 'Elevated' : 'Optimal'}
+            {isRaining ? 'Scenario active' : 'Not measured'}
           </div>
           <div className="text-[9px] text-slate-500 mt-0.5">
-            {isRaining ? 'Wet road markings on PIE' : 'Dry asphalt traction'}
+            {isRaining ? 'SIMULATION — not a traction reading' : 'No road-friction sensor connected'}
           </div>
         </div>
       </div>
@@ -73,12 +72,10 @@ export const MotorcycleModeSheet: React.FC<MotorcycleModeSheetProps> = ({
       <div className="text-[11px] bg-slate-950/60 p-2.5 rounded-xl border border-slate-800 space-y-1">
         <div className="font-semibold text-slate-300 flex items-center gap-1">
           <Gauge className="w-3 h-3 text-cyan-400" />
-          <span>LTA v4/TrafficSpeedBands Analysis</span>
+          <span>Routing evidence</span>
         </div>
         <p className="text-slate-400 text-[10px] leading-relaxed">
-          {isSmoothRoute
-            ? 'Bartley Viaduct & Lornie Highway maintains continuous 62-68 km/h (Speed Band 6), bypassing the Adam Rd bottleneck completely.'
-            : 'PIE Westbound bottleneck detected at 12 km/h (Speed Band 1). Heavy stop-and-go causes high clutch cable heat and rider fatigue.'}
+          Route duration, distance and geometry come from OneMap when available. No speed-band, time-saved, clutch-engagement or road-grip metric is displayed without a supporting response.
         </p>
       </div>
     </div>

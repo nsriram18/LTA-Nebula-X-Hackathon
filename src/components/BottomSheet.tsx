@@ -15,6 +15,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { RouteOption, RouteStep } from '../types';
+import { EvidenceBadge } from './EvidenceBadge';
 
 interface BottomSheetProps {
   routes: RouteOption[];
@@ -130,6 +131,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
           </div>
           <div className="flex items-center gap-1 text-slate-400">
             <span className="font-mono text-cyan-400 font-bold">{activeRoute.totalDurationMinutes} min</span>
+            <EvidenceBadge evidence={activeRoute.metricEvidence?.totalDurationMinutes} cached={isUndergroundOffline} />
             {sheetState === 'expanded' ? (
               <ChevronDown className="w-4 h-4" />
             ) : (
@@ -145,15 +147,18 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
           <div className="flex items-center gap-1 text-slate-300">
             <Clock className="w-3.5 h-3.5 text-cyan-400" />
             <span>{activeRoute.departureTime} → {activeRoute.arrivalTime}</span>
+            <EvidenceBadge evidence={activeRoute.metricEvidence?.arrivalTime} cached={isUndergroundOffline} />
           </div>
           <div className="flex items-center gap-1 text-slate-300">
             <Shield className="w-3.5 h-3.5 text-emerald-400" />
-            <span>{activeRoute.shelteredPercentage}% Sheltered</span>
+            <span>{activeRoute.shelteredPercentage == null ? 'Shelter coverage unavailable' : `${activeRoute.shelteredPercentage}% Sheltered`}</span>
+            <EvidenceBadge evidence={activeRoute.metricEvidence?.shelteredPercentage} cached={isUndergroundOffline} />
           </div>
           {activeRoute.cyclingDistanceKm > 0 && (
             <div className="flex items-center gap-1 text-slate-300">
               <Bike className="w-3.5 h-3.5 text-cyan-400" />
               <span>{activeRoute.cyclingDistanceKm} km Cycle</span>
+              <EvidenceBadge evidence={activeRoute.metricEvidence?.cyclingDistanceKm} cached={isUndergroundOffline} />
             </div>
           )}
         </div>
@@ -196,6 +201,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
                 <div className="flex items-center gap-1.5">
                   <span className="font-semibold text-white">{route.title}</span>
                   <span className="font-mono text-[10px] text-cyan-400">{route.totalDurationMinutes}m</span>
+                  <EvidenceBadge evidence={route.metricEvidence?.totalDurationMinutes} cached={isUndergroundOffline} />
                 </div>
                 <div className="text-[10px] text-slate-400 truncate max-w-[190px]">
                   {route.subtitle}
@@ -274,6 +280,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
                       <span className="text-xs font-mono font-bold text-slate-400 shrink-0">
                         {step.durationMinutes}m
                       </span>
+                      <EvidenceBadge evidence={step.metricEvidence?.durationMinutes} cached={isUndergroundOffline} />
                     </div>
 
                     {/* Step Attributes: Covered, Cycling, Crowds, Bus Load */}
@@ -308,6 +315,19 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
               </div>
             );
           })}
+        </div>
+
+        <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-3 text-[10px] text-slate-400">
+          <div className="mb-2 font-bold uppercase tracking-wider text-slate-300">Metric evidence</div>
+          <div className="space-y-1.5">
+            {Object.entries(activeRoute.metricEvidence || {}).map(([metric, evidence]) => (
+              <div key={metric} className="flex items-start justify-between gap-3">
+                <span className="font-mono text-slate-300">{metric}</span>
+                <span className="flex-1 text-right" title={evidence.detail}>{evidence.source}</span>
+                <EvidenceBadge evidence={evidence} cached={isUndergroundOffline} />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

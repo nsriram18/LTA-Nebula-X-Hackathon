@@ -10,6 +10,7 @@ from typing import Optional
 from zoneinfo import ZoneInfo
 from models.schemas import (
     CommuterProfile,
+    MetricEvidence,
     ProactiveEvaluationResponse,
     ProactiveNotificationPayload,
 )
@@ -18,6 +19,13 @@ from services.routing_service import routing_service
 from services.weather_service import weather_service
 
 class ProactiveDecisionEngine:
+    @staticmethod
+    def _notification_evidence(profile: CommuterProfile, kind: str, detail: str) -> dict[str, MetricEvidence]:
+        return {
+            "scheduledTime": MetricEvidence(source="Commuter profile", type="reference", detail="User-configured scheduled departure time."),
+            "timeShiftMinutes": MetricEvidence(source="ClearPath decision rule", type=kind, detail=detail),
+            "newDepartureTime": MetricEvidence(source="ClearPath calculation", type="derived", detail="Scheduled departure plus the displayed shift."),
+        }
     async def evaluate_commute(
         self,
         profile: CommuterProfile,
@@ -39,6 +47,11 @@ class ProactiveDecisionEngine:
         )
         if simulated_crowd:
             crowd.update({"PE7": "h", "NE17": "h"})
+            crowd["_evidence"] = {
+                "source": "ClearPath scenario control",
+                "type": "simulation",
+                "detail": "Judge-controlled high-crowd fixture; not a live LTA observation.",
+            }
 
         has_disruption = alerts.get("Status") == 2 and len(alerts.get("AffectedSegments", [])) > 0
         has_heavy_rain = weather.get("is_raining") and weather.get("severity") == "Heavy Rain"
@@ -61,7 +74,8 @@ class ProactiveDecisionEngine:
                     original_route_id="moto-route-pie-heavy",
                     suggested_route_id="moto-route-smooth",
                     weather_summary="Rain cell over Central Expressway corridor.",
-                    disruption_summary="Saves >80 clutch engagements on Yamaha XSR155.",
+                    disruption_summary="SIMULATION: wet-road risk scenario is active.",
+                    metric_evidence=self._notification_evidence(profile, "simulation", "No departure shift; rain is a judge-controlled simulation."),
                 )
             else:
                 notification = ProactiveNotificationPayload(
@@ -76,6 +90,7 @@ class ProactiveDecisionEngine:
                     reason="OneMap geometry was recalculated from the configured origin and destination.",
                     original_route_id="moto-route-pie-heavy",
                     suggested_route_id="moto-route-smooth",
+                    metric_evidence=self._notification_evidence(profile, "derived", "No departure shift is applied."),
                 )
 
         # Train Disruption
@@ -96,6 +111,7 @@ class ProactiveDecisionEngine:
                 suggested_route_id="route-mitigated-disruption",
                 disruption_summary=alerts.get("Message", [{}])[0].get("Content"),
                 free_mitigation_available=mitigation,
+                metric_evidence=self._notification_evidence(profile, "simulation" if replay_disruption else "live_api", "No time shift; response uses the disruption evidence attached to the alert."),
             )
 
         # Heavy Rain on cycling leg
@@ -108,11 +124,12 @@ class ProactiveDecisionEngine:
                 severity="warning",
                 time_shift_minutes=20,
                 new_departure_time=shifted,
-                recommended_action=f"Shift departure to {shifted} or use the rain-aware route from {profile.home_address}",
-                reason="Heavy rain was detected near the configured first-mile route and is expected to ease in 20 minutes.",
+                recommended_action=f"Use the rain-aware route from {profile.home_address}; optional +20 minute shift is within the profile's flexibility window",
+                reason="Heavy rain is active. The +20 minute option is a user-flexibility scenario, not a weather-clearance forecast.",
                 original_route_id="route-arjun-signature",
                 suggested_route_id="route-rain-sheltered",
                 weather_summary=weather.get("advisory"),
+                metric_evidence=self._notification_evidence(profile, "simulation" if simulated_rain else "derived", "Optional 20-minute shift is a scenario within the configured flexibility window."),
             )
 
         elif crowd.get("PE7") == "h" or crowd.get("NE17") == "h":
@@ -125,10 +142,11 @@ class ProactiveDecisionEngine:
                 time_shift_minutes=20,
                 new_departure_time=shifted,
                 recommended_action=f"Shift departure by +20 min to {shifted}",
-                reason=f"LTA crowd forecast indicates a high platform load around {scheduled} before conditions ease.",
+                reason=f"The available crowd evidence indicates a high platform load around {scheduled}. The +20 minute alternative has not been re-forecast.",
                 original_route_id="route-arjun-signature",
                 suggested_route_id="route-proactive-offpeak",
-                crowd_summary=f"Crowding is expected to ease for the route from {profile.home_address} after the peak window.",
+                crowd_summary=f"High crowd evidence applies to the scheduled route from {profile.home_address}; shifted-route crowd is unverified.",
+                metric_evidence=self._notification_evidence(profile, "simulation" if simulated_crowd else "derived", "Optional 20-minute shift is within the configured flexibility window; crowd at the shifted time is not asserted."),
             )
 
         return ProactiveEvaluationResponse(

@@ -81,7 +81,7 @@ export const ScenarioControls: React.FC<ScenarioControlsProps> = ({
           <AlertTriangle className={`w-4 h-4 ${isDisruptionReplay ? 'text-rose-400' : 'text-slate-400'}`} />
           <div className="text-left leading-tight">
             <div>LRT Fault Replay</div>
-            <div className="text-[9px] text-slate-400 font-normal">TrainServiceAlerts</div>
+            <div className="text-[9px] text-slate-400 font-normal">SIMULATION • replay fixture</div>
           </div>
         </button>
 
@@ -98,7 +98,7 @@ export const ScenarioControls: React.FC<ScenarioControlsProps> = ({
           <CloudRain className={`w-4 h-4 ${isHeavyRain ? 'text-blue-400' : 'text-slate-400'}`} />
           <div className="text-left leading-tight">
             <div>Torrential Rain</div>
-            <div className="text-[9px] text-slate-400 font-normal">data.gov.sg (18mm)</div>
+            <div className="text-[9px] text-slate-400 font-normal">SIMULATION • 18.4 mm/h</div>
           </div>
         </button>
 
@@ -115,7 +115,7 @@ export const ScenarioControls: React.FC<ScenarioControlsProps> = ({
           <Users className={`w-4 h-4 ${isHighCrowd ? 'text-amber-400' : 'text-slate-400'}`} />
           <div className="text-left leading-tight">
             <div>Peak Rush Hour</div>
-            <div className="text-[9px] text-slate-400 font-normal">PCDForecast ('h')</div>
+            <div className="text-[9px] text-slate-400 font-normal">SIMULATION • high ('h')</div>
           </div>
         </button>
 
@@ -132,14 +132,14 @@ export const ScenarioControls: React.FC<ScenarioControlsProps> = ({
           <Zap className={`w-4 h-4 ${isMotorcycleMode ? 'text-emerald-400' : 'text-slate-400'}`} />
           <div className="text-left leading-tight">
             <div>Motorcycle Mode</div>
-            <div className="text-[9px] text-slate-400 font-normal">XSR155 SpeedBands</div>
+            <div className="text-[9px] text-slate-400 font-normal">OneMap route • no fake telemetry</div>
           </div>
         </button>
       </div>
 
       {/* Geospatial Overlays Quick Toggles */}
       <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-800 text-[10px]">
-        <div className="text-slate-400">Map Overlays:</div>
+        <div className="text-slate-400">Reference overlays:</div>
         <div className="flex items-center gap-2">
           <button
             id="toggle-shelter-overlay-btn"

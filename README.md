@@ -2,6 +2,8 @@
 > **Singapore Problem Statement 2 (PS2) Challenge Submission**  
 > Tailored specifically for **Arjun** (Multi-modal, flexible-start commuter travelling from Punggol to one-north).
 
+**Live frontend:** [https://lta-nebula-x-hackathon-314751883323.us-central1.run.app](https://lta-nebula-x-hackathon-314751883323.us-central1.run.app)
+
 ---
 
 ## 1. Quick Overview
@@ -47,8 +49,8 @@ Google Secret Manager. Cloud Run authenticates to Firestore using its attached
 service account through Application Default Credentials; do not deploy a
 service-account JSON key.
 
-> **Graceful Offline & Evaluation Fallback:**  
-> If external API keys are not supplied, ClearPath seamlessly initializes with resilient verified offline baseline datasets and high-performance in-memory persistence. Judges can run and evaluate all features completely offline without spending any money or registering for external keys.
+> **Data-integrity behavior:**
+> If an upstream feed is unavailable, ClearPath reports that metric as unavailable instead of inventing a normal service, crowd, weather, bus-arrival, or traffic reading. If OneMap fails, the replacement is visibly titled **Estimated Fallback Route**, with its formula exposed in the UI. Saved underground journeys are visibly labeled **CACHED**.
 
 ---
 
@@ -108,28 +110,21 @@ docker run -p 8080:8080 -e PORT=8080 clearpath-backend
 Follow this one real journey to test ClearPath end-to-end for **Arjun**:
 
 1. **Launch App**: Open `http://localhost:3000`. The map immediately loads on the Punggol-to-one-north corridor with OpenStreetMap base tiles and the visible attribution `"© OpenStreetMap contributors"`.
-2. **Observe Arjun's Default Journey**:
-   - Arjun's scheduled commute is at **08:30 AM**.
-   - The persistent Bottom Sheet displays his signature multi-modal itinerary:
-     `Cycle (Punggol PCN: 2.1 km) → Damai LRT (PE7) → Punggol NEL → Circle Line → one-north (CC23) → CoveredLinkWay to Fusionopolis`.
+2. **Observe the configured journey**:
+   - The initial profile's scheduled commute is **08:30 AM**; origin, destination, coordinates, time, and mode are editable.
+   - Route geometry, distance, and duration come from OneMap when available. Expand the bottom sheet to see **Metric evidence** for every displayed route metric.
 3. **Simulate Train Disruption Replay**:
    - In the top toolbar, tap **"LRT Fault Replay"**.
-   - ClearPath parses the nested `AffectedSegments` in LTA's `TrainServiceAlerts` feed and detects that LTA has activated `FreeMRTShuttle` and `FreePublicBus`.
-   - The proactive banner immediately advises: *"Take Free MRT Shuttle from Punggol Interchange direct to Circle Line"*. Tap **"Accept Recommended Route"**.
-   - Notice the map updates with amber mitigation routing and step badges indicating free boarding.
+   - This is visibly labeled **SIMULATION**. It exercises nested `AffectedSegments`, `FreeMRTShuttle`, and `FreePublicBus` handling without claiming a current disruption.
 4. **Simulate Torrential Rain on Cycling Leg**:
-   - Tap **"Torrential Rain"** (simulating 18.4 mm/h rain cell from data.gov.sg over Punggol).
-   - ClearPath detects slip hazards and wet exposure on the cycling path.
-   - The proactive engine advises: *"Shift departure to 08:50 or take CoveredLinkWay + Bus 84"*.
-   - Tap **"Accept Recommended Route"** to engage the 94% sheltered route with bus seating prediction (`Load: SEA`).
+   - Tap **"Torrential Rain"** to activate a clearly labeled **SIMULATION** value of **18.4 mm/h** near the configured origin.
+   - No clearance time, shelter percentage, bus load, or road-friction value is asserted without evidence.
 5. **Simulate Underground / Loss of Cellular Signal**:
    - In the bottom sheet, tap **"Simulate Tunnel"** (or switch your phone to Airplane Mode).
-   - ClearPath detects the network drop, switches seamlessly to the `localStorage` and Service Worker cached active journey, displays the cached timestamp, and provides offline station concourse instructions.
+   - ClearPath loads the saved active journey, displays the cache timestamp, and labels its displayed metrics **CACHED**.
 6. **Test "Beyond the Brief": Motorcycle Mode (Yamaha XSR155)**:
    - In the top toolbar or user profile, tap **"Motorcycle Mode"**.
-   - ClearPath evaluates LTA's `v4/TrafficSpeedBands` across expressways.
-   - It detects Speed Band 1 (8-18 km/h stop-and-go) along the PIE Westbound near Adam Road.
-   - ClearPath proactively routes the rider via **Bartley Viaduct & Lornie Highway (Speed Band 6: 65 km/h)**, saving 13 minutes and eliminating >80 stop-and-go clutch modulations to prevent rider fatigue and wet road-marking slip hazards!
+   - ClearPath requests a motorcycle route from OneMap. It does not invent speed bands, clutch events, fatigue, time saved, or grip telemetry when those measurements are absent.
 
 ---
 
@@ -162,8 +157,7 @@ never sent to the browser.
 
 FastAPI accepts and returns camelCase JSON so its profile, route, and
 notification payloads match the TypeScript types. Route generation now runs on
-the backend, with the former browser routing engine retained only as an offline
-fallback. Scenario controls are sent to `/api/proactive-check` as explicit
+the backend; there is no browser-generated routing fallback. Scenario controls are sent to `/api/proactive-check` as explicit
 disruption, rain, and crowd simulation parameters.
 
 `POST /api/routes` performs parameter-driven routing. It accepts an explicit
@@ -174,6 +168,22 @@ React map. If OneMap is temporarily unavailable, the response is marked
 `provider: "fallback"` and returns a coordinate-derived estimate instead of a
 fixed demo journey. Proactive evaluations also send the current profile in the
 request body, so newly edited journey parameters are used immediately.
+
+### Metric Evidence and Fallback Labels
+
+| Displayed value | Evidence shown in the app | Failure behavior |
+|---|---|---|
+| Route and leg duration/distance/geometry | `LIVE API` — OneMap Routing API | `ESTIMATE` — Haversine × 1.22, documented assumed speed, and transfer allowance |
+| Departure time | `REFERENCE` — commuter profile | Remains the configured value |
+| Arrival time | `DERIVED` — departure plus route duration | Uses the labeled estimated duration only on an Estimated Fallback Route |
+| Crowd | `LIVE API` — LTA PCDForecast, or `SIMULATION` | `Unavailable`; no low-crowd assumption |
+| Train disruption | `LIVE API` — LTA TrainServiceAlerts, or `SIMULATION` replay | Unknown/unavailable; no normal-service assertion |
+| Weather | `LIVE API` — data.gov.sg area forecast, or `SIMULATION` | Unknown/unavailable; no dry-weather assertion |
+| Shelter percentage | Shown only when supported by route data | `Unavailable`; a preference is not converted into a percentage |
+| Motorcycle fatigue, grip, and clutch events | Not displayed without a validated sensor/model | `Unavailable` |
+| Underground journey | `CACHED` with snapshot time | No claim that cached values are current |
+
+The green shelter and cyan cycling lines are labeled **REFERENCE OVERLAY**. They are illustrative subsets, not a whole-island live feed, and are not used to calculate a shelter percentage.
 
 For local frontend development, either retain the production API URL or set a
 local override in the ignored `.env` file:

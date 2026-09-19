@@ -34,7 +34,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
             </span>
           </div>
           <p className="text-[10px] text-slate-400 font-medium leading-tight mt-0.5">
-            Punggol → one-north
+            {profile.homeAddress} → {profile.officeAddress}
           </p>
         </div>
       </div>
@@ -50,12 +50,12 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
           ) : isRaining ? (
             <>
               <CloudRain className="w-3.5 h-3.5 text-blue-400 animate-pulse" />
-              <span className="text-blue-300 font-medium">Rain Alert</span>
+              <span className="text-blue-300 font-medium">SIMULATION: Rain</span>
             </>
           ) : (
             <>
               <CloudSun className="w-3.5 h-3.5 text-amber-400" />
-              <span>Dry 29°C</span>
+              <span>No rain scenario</span>
             </>
           )}
         </div>

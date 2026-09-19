@@ -12,11 +12,8 @@ import { ScenarioControls } from './components/ScenarioControls';
 import { ProfileModal } from './components/ProfileModal';
 import { MotorcycleModeSheet } from './components/MotorcycleModeSheet';
 import { proactiveEngine } from './services/proactiveEngine';
-import { ltaService } from './services/ltaService';
-import { weatherService } from './services/weatherService';
 import { offlineStorage, DEFAULT_ARJUN_PROFILE } from './services/offlineStorage';
 import { RouteOption, RouteStep, CommuterProfile, ProactiveNotificationPayload, TrafficSpeedBand } from './types';
-import { TRAFFIC_SPEED_BANDS_DATA } from './data/mockGeospatial';
 import { backendApi } from './services/backendApi';
 
 type SyncStatus = 'syncing' | 'synced' | 'offline';
@@ -38,7 +35,7 @@ export default function App() {
   const [offlineCachedAt, setOfflineCachedAt] = useState<string>('08:30 AM');
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [speedBands, setSpeedBands] = useState<TrafficSpeedBand[]>(TRAFFIC_SPEED_BANDS_DATA);
+  const [speedBands] = useState<TrafficSpeedBand[]>([]);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('syncing');
   const [apiError, setApiError] = useState<string | null>(null);
 
@@ -101,7 +98,7 @@ export default function App() {
     }
   }, [cacheJourney, isDisruptionReplay, isHeavyRain, isHighCrowd, profile]);
 
-  // Hydrate Firestore profile, live speed bands, then request server routes.
+  // Hydrate Firestore profile, then request server routes.
   useEffect(() => {
     let active = true;
     const bootstrap = async () => {
@@ -118,13 +115,6 @@ export default function App() {
         setSyncStatus('offline');
       }
 
-      try {
-        const liveBands = await ltaService.getTrafficSpeedBands();
-        if (active && liveBands.length > 0) setSpeedBands(liveBands);
-      } catch (error) {
-        console.warn('Speed band sync unavailable:', error);
-      }
-
       if (active) await runEvaluation(targetProfile);
     };
     void bootstrap();
@@ -139,14 +129,12 @@ export default function App() {
   const handleToggleDisruptionReplay = () => {
     const nextVal = !isDisruptionReplay;
     setIsDisruptionReplay(nextVal);
-    ltaService.setReplayDisruptionMode(nextVal);
     void runEvaluation(undefined, { replayDisruption: nextVal });
   };
 
   const handleToggleHeavyRain = () => {
     const nextVal = !isHeavyRain;
     setIsHeavyRain(nextVal);
-    weatherService.setHeavyRainScenario(nextVal);
     void runEvaluation(undefined, { simulatedRain: nextVal });
   };
 

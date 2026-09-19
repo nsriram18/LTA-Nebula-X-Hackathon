@@ -96,6 +96,15 @@ class ClearPathAPIContractTests(unittest.TestCase):
         self.assertEqual(body["routes"][0]["id"], "route-mitigated-disruption")
         self.assertIn("totalDurationMinutes", body["routes"][0])
         self.assertNotIn("total_duration_minutes", body["routes"][0])
+        self.assertEqual(body["routes"][0]["provider"], "estimated_fallback")
+        self.assertEqual(
+            body["routes"][0]["metricEvidence"]["totalDurationMinutes"]["type"],
+            "estimated_fallback",
+        )
+        self.assertEqual(
+            body["payload"]["metricEvidence"]["timeShiftMinutes"]["type"],
+            "simulation",
+        )
 
     def test_cors_allows_local_frontend_but_not_unknown_origin(self):
         allowed = self.client.options(
@@ -212,6 +221,12 @@ class ClearPathAPIContractTests(unittest.TestCase):
         self.assertEqual(body["routes"][0]["departureTime"], "09:15")
         self.assertEqual(body["routes"][0]["totalDurationMinutes"], 10)
         self.assertEqual(body["routes"][0]["totalDistanceKm"], 2.5)
+        self.assertEqual(body["routes"][0]["provider"], "onemap")
+        self.assertEqual(
+            body["routes"][0]["metricEvidence"]["totalDurationMinutes"]["source"],
+            "OneMap Routing API",
+        )
+        self.assertIsNone(body["routes"][0]["shelteredPercentage"])
         self.assertIn("Test Origin → Test Destination", body["routes"][0]["subtitle"])
         self.assertEqual(body["routes"][0]["steps"][0]["mode"], "cycle")
         called = get_route.await_args

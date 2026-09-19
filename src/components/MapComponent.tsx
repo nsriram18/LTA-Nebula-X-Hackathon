@@ -84,7 +84,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           dashArray: '4, 6',
           opacity: 0.9,
         })
-          .bindTooltip('LTA CoveredLinkWay (Sheltered Walkway)', { direction: 'top' })
+          .bindTooltip('REFERENCE OVERLAY: illustrative CoveredLinkWay subset', { direction: 'top' })
           .addTo(layerGroup);
       });
     }
@@ -98,7 +98,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           dashArray: '6, 4',
           opacity: 0.9,
         })
-          .bindTooltip('LTA CyclingPath / Park Connector', { direction: 'top' })
+          .bindTooltip('REFERENCE OVERLAY: illustrative CyclingPath subset', { direction: 'top' })
           .addTo(layerGroup);
       });
     }
@@ -133,7 +133,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         fillOpacity: 0.35,
         weight: 1.5,
       })
-        .bindTooltip('data.gov.sg: Heavy Rain Cell (18.4 mm/h)', { permanent: true, direction: 'center' })
+        .bindTooltip('SIMULATION: 18.4 mm/h heavy-rain test area', { permanent: true, direction: 'center' })
         .addTo(layerGroup);
     }
 

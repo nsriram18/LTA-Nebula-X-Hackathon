@@ -1,6 +1,7 @@
 import React from 'react';
 import { Bell, AlertTriangle, CloudRain, Clock, ShieldCheck, ArrowRight, X } from 'lucide-react';
 import { ProactiveNotificationPayload } from '../types';
+import { EvidenceBadge } from './EvidenceBadge';
 
 interface ProactiveNotificationProps {
   payload: ProactiveNotificationPayload | null;
@@ -44,6 +45,7 @@ export const ProactiveNotification: React.FC<ProactiveNotificationProps> = ({
             <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${badgeColor}`}>
               <Clock className="w-3 h-3" />
               45-Min Proactive Notice • {payload.timestamp}
+              <EvidenceBadge evidence={payload.metricEvidence?.scheduledTime} />
             </span>
             <button
               id="dismiss-notif-btn"
@@ -68,6 +70,7 @@ export const ProactiveNotification: React.FC<ProactiveNotificationProps> = ({
             {payload.timeShiftMinutes !== 0 && (
               <span className="inline-flex items-center text-[10px] bg-slate-800 text-cyan-300 px-2 py-0.5 rounded-md border border-slate-700 font-mono">
                 Departure: {payload.newDepartureTime} ({payload.timeShiftMinutes > 0 ? `+${payload.timeShiftMinutes}m` : `${payload.timeShiftMinutes}m`})
+                <EvidenceBadge evidence={payload.metricEvidence?.timeShiftMinutes} />
               </span>
             )}
             {payload.freeMitigationAvailable && (

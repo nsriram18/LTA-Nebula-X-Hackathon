@@ -1,9 +1,7 @@
 /**
- * Geospatial data, canonical mappings, and captured disruption datasets
- * Designed for Arjun's commute from Punggol to one-north.
+ * Reference-only geospatial overlays used to explain the concept UI.
+ * These hand-selected coordinates are never presented as live or complete datasets.
  */
-
-import { TrainServiceAlertResponse, TrafficSpeedBand } from '../types';
 
 /**
  * Canonical Line Table mapping across LTA endpoints
@@ -49,7 +47,7 @@ export const STATIONS = {
 
 /**
  * LTA CoveredLinkWay segments (Sheltered walkways)
- * Extracted from LTA DataMall Geospatial Whole Island CoveredLinkWay shapefile
+ * REFERENCE OVERLAY: illustrative subset based on LTA CoveredLinkWay locations.
  */
 export const COVERED_LINKWAYS: [number, number][][] = [
   // Damai LRT to Punggol Walk residential blocks
@@ -85,7 +83,7 @@ export const COVERED_LINKWAYS: [number, number][][] = [
 
 /**
  * LTA CyclingPath segments (Dedicated bike paths & Park Connector Network)
- * Extracted from LTA DataMall Geospatial Whole Island CyclingPath
+ * REFERENCE OVERLAY: illustrative subset based on LTA CyclingPath locations.
  */
 export const CYCLING_PATHS: [number, number][][] = [
   // Punggol Waterway Park Connector (Scenic cycling leg)
@@ -112,102 +110,4 @@ export const CYCLING_PATHS: [number, number][][] = [
     [1.2995, 103.7876],
     [1.2965, 103.7865],
   ],
-];
-
-/**
- * Captured Disruption Scenario (Replay dataset for judging demonstration)
- * Labeled per brief Section 2.6:
- * Demonstrates a live signal fault on Punggol LRT (PTL) East Loop with
- * FreePublicBus and FreeMRTShuttle mitigations activated by LTA.
- */
-export const CAPTURED_DISRUPTION_REPLAY: TrainServiceAlertResponse = {
-  Status: 2,
-  AffectedSegments: [
-    {
-      Line: 'PTL',
-      Direction: 'Both',
-      Stations: 'PE1,PE2,PE3,PE4,PE5,PE6,PE7',
-      FreePublicBus: 'Free bus service available between Punggol and all East Loop stations (PE1 to PE7). Board at designated bus stops.',
-      FreeMRTShuttle: 'Free shuttle buses operating between Punggol Bus Interchange and Oasis / Damai LRT stations.',
-      MRTShuttleDirection: 'Both',
-    },
-    {
-      Line: 'NEL',
-      Direction: 'Towards HarbourFront',
-      Stations: 'NE17,NE16',
-      FreePublicBus: 'Free boarding on Bus 85, 39, and 168 from Punggol Temp Interchange.',
-      FreeMRTShuttle: undefined,
-    },
-  ],
-  Message: [
-    {
-      Content: '[REPLAY TEST DATA - LTA TrainServiceAlerts] PGL LRT East Loop service suspended due to signalling track fault. Free public buses and bridging shuttle buses are active.',
-      CreatedDate: '2026-09-18 07:42:15',
-    },
-    {
-      Content: '[REPLAY TEST DATA - LTA TrainServiceAlerts] Commuters travelling towards Circle Line or one-north are advised to consider Direct Bus 85/39 to Khatib/Yishun or Bus 168 to avoid high platform congestion at Punggol NEL.',
-      CreatedDate: '2026-09-18 07:44:00',
-    },
-  ],
-};
-
-/**
- * Normal condition alert response (Standard day when AffectedSegments is empty)
- */
-export const NORMAL_TRAIN_ALERTS: TrainServiceAlertResponse = {
-  Status: 1,
-  AffectedSegments: [],
-  Message: [
-    {
-      Content: 'Train services on all lines (MRT and LRT) are operating normally.',
-      CreatedDate: new Date().toISOString().replace('T', ' ').slice(0, 19),
-    },
-  ],
-};
-
-/**
- * LTA v4/TrafficSpeedBands mock snapshot for Motorcycle Mode
- * Compares expressway (PIE/CTE) heavy stop-and-go vs arterial bypass routes
- */
-export const TRAFFIC_SPEED_BANDS_DATA: TrafficSpeedBand[] = [
-  // PIE Westbound (Near Adam Rd to BKE) - Heavy Congestion (<20 km/h)
-  {
-    LinkId: 'PIE_WB_102',
-    RoadName: 'Pan Island Expressway (PIE) Westbound',
-    SpeedBand: 1, // 0 - 19 km/h (severe stop-and-go)
-    MinimumSpeed: 8,
-    MaximumSpeed: 18,
-    StartCoordinates: { lat: 1.332, lng: 103.834 },
-    EndCoordinates: { lat: 1.328, lng: 103.815 },
-  },
-  // CTE Southbound (Near Braddell) - Moderate Congestion
-  {
-    LinkId: 'CTE_SB_205',
-    RoadName: 'Central Expressway (CTE) Southbound',
-    SpeedBand: 2, // 20 - 29 km/h
-    MinimumSpeed: 21,
-    MaximumSpeed: 28,
-    StartCoordinates: { lat: 1.348, lng: 103.861 },
-    EndCoordinates: { lat: 1.331, lng: 103.855 },
-  },
-  // Bartley Viaduct / Lornie Highway Bypass - Free Flow (>65 km/h)
-  {
-    LinkId: 'BARTLEY_WB_301',
-    RoadName: 'Bartley Viaduct / Lornie Highway Bypass',
-    SpeedBand: 6, // 60 - 69 km/h
-    MinimumSpeed: 62,
-    MaximumSpeed: 68,
-    StartCoordinates: { lat: 1.349, lng: 103.879 },
-    EndCoordinates: { lat: 1.338, lng: 103.829 },
-  },
-  // West Coast Highway / Queensway link to one-north
-  {
-    LinkId: 'QUEENSWAY_402',
-    RoadName: 'Queensway / Portsdown Rd Link',
-    SpeedBand: 5, // 50 - 59 km/h
-    MinimumSpeed: 52,
-    MaximumSpeed: 57,
-    StartCoordinates: { lat: 1.305, lng: 103.799 },
-    EndCoordinates: { lat: 1.299, lng: 103.788 },
-  },
 ];

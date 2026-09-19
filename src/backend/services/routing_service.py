@@ -5,11 +5,18 @@ from __future__ import annotations
 import math
 from typing import Any, Dict, Iterable, List, Sequence, Tuple
 
-from models.schemas import CommuterProfile, RouteOption, RouteRequest, RouteStep
+from models.schemas import CommuterProfile, MetricEvidence, RouteOption, RouteRequest, RouteStep
 from services.onemap_service import onemap_service
 
 
 class RoutingService:
+    ONEMAP_URL = "https://www.onemap.gov.sg/apidocs/routing"
+    DATAMALL_URL = "https://datamall.lta.gov.sg/content/datamall/en/dynamic-data.html"
+
+    @staticmethod
+    def _evidence(source: str, kind: str, detail: str, source_url: str | None = None) -> MetricEvidence:
+        return MetricEvidence(source=source, type=kind, detail=detail, source_url=source_url)
+
     @staticmethod
     def _arrival(departure: str, duration: int) -> str:
         hours, minutes = (int(value) for value in departure.split(":"))
@@ -93,12 +100,14 @@ class RoutingService:
 
     @staticmethod
     def _crowd_score(crowd: Dict[str, str]) -> str:
-        levels = set(crowd.values())
+        levels = {value for value in crowd.values() if isinstance(value, str)}
         if "h" in levels:
             return "High"
         if "m" in levels:
             return "Moderate"
-        return "Low"
+        if "l" in levels:
+            return "Low"
+        return "Unavailable"
 
     @staticmethod
     def _safe_number(value: Any, default: float = 0) -> float:
@@ -207,8 +216,8 @@ class RoutingService:
                         distance_meters=max(0, distance),
                         duration_minutes=duration,
                         coordinates=coordinates,
-                        is_sheltered=mode == "walk" and request.prioritize_shelter,
-                        is_cycling_path=mode == "cycle",
+                        is_sheltered=False,
+                        is_cycling_path=False,
                         station_name=str(end_name) if mode in {"mrt", "lrt"} else None,
                         crowd_level=self._representative_crowd(crowd)
                         if mode in {"mrt", "lrt"}
@@ -216,6 +225,11 @@ class RoutingService:
                         bus_service_no=str(leg.get("route"))
                         if mode == "bus" and leg.get("route")
                         else None,
+                        metric_evidence={
+                            "durationMinutes": self._evidence("OneMap Routing API", "live_api", "Leg duration returned by OneMap.", self.ONEMAP_URL),
+                            "distanceMeters": self._evidence("OneMap Routing API", "live_api", "Leg distance returned by OneMap.", self.ONEMAP_URL),
+                            "coordinates": self._evidence("OneMap Routing API", "live_api", "Decoded OneMap leg geometry.", self.ONEMAP_URL),
+                        },
                     )
                 )
 
@@ -250,10 +264,20 @@ class RoutingService:
                     departure_time=request.departure_time,
                     arrival_time=self._arrival(request.departure_time, duration),
                     crowd_score=self._crowd_score(crowd),
-                    comfort_score=max(45, 92 - round(walk_distance / 180)),
-                    sheltered_percentage=70 if request.prioritize_shelter else 35,
+                    comfort_score=None,
+                    sheltered_percentage=None,
                     cycling_distance_km=round(cycle_distance / 1000, 1),
                     steps=steps,
+                    provider="onemap",
+                    metric_evidence={
+                        "totalDurationMinutes": self._evidence("OneMap Routing API", "live_api", "Itinerary duration returned by OneMap.", self.ONEMAP_URL),
+                        "totalDistanceKm": self._evidence("OneMap Routing API", "live_api", "Sum of OneMap leg distances, converted from metres to kilometres.", self.ONEMAP_URL),
+                        "departureTime": self._evidence("Commuter profile", "reference", "User-configured scheduled departure time."),
+                        "arrivalTime": self._evidence("ClearPath calculation", "derived", "Departure time plus OneMap itinerary duration."),
+                        "crowdScore": self._crowd_evidence(crowd),
+                        "shelteredPercentage": self._evidence("Unavailable", "reference", "OneMap does not return route-level sheltered coverage; no percentage is asserted."),
+                        "cyclingDistanceKm": self._evidence("OneMap Routing API", "derived", "Sum of cycling-leg distances returned by OneMap.", self.ONEMAP_URL),
+                    },
                 )
             )
         return routes
@@ -308,8 +332,8 @@ class RoutingService:
                 departure_time=request.departure_time,
                 arrival_time=self._arrival(request.departure_time, duration),
                 crowd_score=self._crowd_score(crowd),
-                comfort_score=82 if mode in {"walk", "cycle"} else 76,
-                sheltered_percentage=65 if request.prioritize_shelter else 15,
+                comfort_score=None,
+                sheltered_percentage=None,
                 cycling_distance_km=round(distance / 1000, 1) if mode == "cycle" else 0,
                 steps=[
                     RouteStep(
@@ -319,10 +343,25 @@ class RoutingService:
                         distance_meters=round(distance),
                         duration_minutes=duration,
                         coordinates=coordinates,
-                        is_sheltered=mode == "walk" and request.prioritize_shelter,
-                        is_cycling_path=mode == "cycle",
+                        is_sheltered=False,
+                        is_cycling_path=False,
+                        metric_evidence={
+                            "durationMinutes": self._evidence("OneMap Routing API", "live_api", "Route duration returned by OneMap.", self.ONEMAP_URL),
+                            "distanceMeters": self._evidence("OneMap Routing API", "live_api", "Route distance returned by OneMap.", self.ONEMAP_URL),
+                            "coordinates": self._evidence("OneMap Routing API", "live_api", "Decoded OneMap route geometry.", self.ONEMAP_URL),
+                        },
                     )
                 ],
+                provider="onemap",
+                metric_evidence={
+                    "totalDurationMinutes": self._evidence("OneMap Routing API", "live_api", "Route duration returned by OneMap.", self.ONEMAP_URL),
+                    "totalDistanceKm": self._evidence("OneMap Routing API", "live_api", "Route distance returned by OneMap and converted to kilometres.", self.ONEMAP_URL),
+                    "departureTime": self._evidence("Commuter profile", "reference", "User-configured scheduled departure time."),
+                    "arrivalTime": self._evidence("ClearPath calculation", "derived", "Departure time plus OneMap duration."),
+                    "crowdScore": self._crowd_evidence(crowd),
+                    "shelteredPercentage": self._evidence("Unavailable", "reference", "The routing response contains no sheltered-coverage measurement."),
+                    "cyclingDistanceKm": self._evidence("OneMap Routing API", "derived", "Cycling route distance returned by OneMap.", self.ONEMAP_URL),
+                },
             )
         ]
 
@@ -345,7 +384,7 @@ class RoutingService:
         duration = max(1, round(distance_km / speed * 60 + transfer_minutes))
         return RouteOption(
             id="route-fallback-primary",
-            title="Estimated Route",
+            title="Estimated Fallback Route",
             subtitle=f"{request.origin_address} → {request.destination_address} (OneMap temporarily unavailable)",
             mode_summary=[mode],
             total_duration_minutes=duration,
@@ -353,8 +392,8 @@ class RoutingService:
             departure_time=request.departure_time,
             arrival_time=self._arrival(request.departure_time, duration),
             crowd_score=self._crowd_score(crowd),
-            comfort_score=68,
-            sheltered_percentage=55 if request.prioritize_shelter else 20,
+            comfort_score=None,
+            sheltered_percentage=None,
             cycling_distance_km=round(distance_km, 1) if mode == "cycle" else 0,
             is_recommended=True,
             steps=[
@@ -365,16 +404,39 @@ class RoutingService:
                     distance_meters=round(distance_km * 1000),
                     duration_minutes=duration,
                     coordinates=self._interpolate(start, end),
-                    is_sheltered=mode == "walk" and request.prioritize_shelter,
-                    is_cycling_path=mode == "cycle",
+                    is_sheltered=False,
+                    is_cycling_path=False,
+                    metric_evidence={
+                        "durationMinutes": self._evidence("ClearPath fallback formula", "estimated_fallback", f"Estimated distance divided by assumed {speed:.1f} km/h, plus {transfer_minutes} transfer minutes."),
+                        "distanceMeters": self._evidence("ClearPath fallback formula", "estimated_fallback", "Haversine distance multiplied by 1.22."),
+                        "coordinates": self._evidence("ClearPath interpolation", "estimated_fallback", "Straight-line points between the submitted coordinates; not turn-by-turn geometry."),
+                    },
                 )
             ],
+            provider="estimated_fallback",
+            metric_evidence={
+                "totalDurationMinutes": self._evidence("ClearPath fallback formula", "estimated_fallback", f"Estimated distance divided by assumed {speed:.1f} km/h, plus {transfer_minutes} transfer minutes."),
+                "totalDistanceKm": self._evidence("ClearPath fallback formula", "estimated_fallback", "Haversine distance multiplied by 1.22."),
+                "departureTime": self._evidence("Commuter profile", "reference", "User-configured scheduled departure time."),
+                "arrivalTime": self._evidence("ClearPath calculation", "derived", "Departure time plus estimated duration."),
+                "crowdScore": self._crowd_evidence(crowd),
+                "shelteredPercentage": self._evidence("Unavailable", "reference", "No sheltered-coverage measurement is available for an estimated route."),
+                "cyclingDistanceKm": self._evidence("ClearPath fallback formula", "estimated_fallback", "Equals estimated route distance only in cycling mode."),
+            },
         )
 
     @staticmethod
     def _representative_crowd(crowd: Dict[str, str]) -> str:
-        values = set(crowd.values())
-        return "h" if "h" in values else "m" if "m" in values else "l"
+        values = {value for value in crowd.values() if isinstance(value, str)}
+        return "h" if "h" in values else "m" if "m" in values else "l" if "l" in values else "NA"
+
+    def _crowd_evidence(self, crowd: Dict[str, str]) -> MetricEvidence:
+        meta = crowd.get("_evidence")
+        if isinstance(meta, dict):
+            return MetricEvidence(**meta)
+        if any(value in {"l", "m", "h"} for value in crowd.values() if isinstance(value, str)):
+            return self._evidence("LTA DataMall PCDForecast", "live_api", "Aggregated from station crowd levels supplied to routing.", self.DATAMALL_URL)
+        return self._evidence("Unavailable", "reference", "No station crowd observation was available.")
 
     @staticmethod
     def _set_recommended(routes: Iterable[RouteOption], selected_id: str) -> None:
@@ -412,7 +474,7 @@ class RoutingService:
         if profile.motorcycle_mode:
             primary.id = "moto-route-smooth"
             primary.title = "Live Motorcycle Route"
-            primary.traffic_stress_score = 35 if profile.minimize_clutch_fatigue else 55
+            primary.traffic_stress_score = None
             primary.weather_risk = "Moderate Rain" if raining else "None"
             return routes
 
@@ -440,9 +502,7 @@ class RoutingService:
         elif raining and weather.get("severity") == "Heavy Rain":
             primary.id = "route-rain-sheltered"
             primary.title = "Rain-Aware Live Route"
-            primary.sheltered_percentage = max(primary.sheltered_percentage, 85)
             primary.weather_risk = "Heavy Rain"
-            primary.comfort_score = max(primary.comfort_score, 88)
 
         if profile.flexible_window_minutes > 0:
             shift = min(20, profile.flexible_window_minutes)
@@ -456,8 +516,8 @@ class RoutingService:
                 off_peak.departure_time, off_peak.total_duration_minutes
             )
             off_peak.proactive_shift_minutes = shift
-            off_peak.crowd_score = "Low"
-            off_peak.comfort_score = min(100, off_peak.comfort_score + 8)
+            off_peak.metric_evidence["departureTime"] = self._evidence("ClearPath scenario", "derived", f"Adds the profile's allowed {shift}-minute flexible shift to the scheduled time.")
+            off_peak.metric_evidence["arrivalTime"] = self._evidence("ClearPath calculation", "derived", "Shifted departure time plus the same route duration; traffic was not re-queried.")
             off_peak.is_recommended = False
             off_peak.is_alternative = True
             routes.append(off_peak)

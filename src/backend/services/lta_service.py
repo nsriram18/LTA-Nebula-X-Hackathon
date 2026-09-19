@@ -4,6 +4,7 @@ Implements TrainServiceAlerts nested AffectedSegments parser, PCDForecast, BusAr
 """
 
 import os
+from datetime import datetime, timezone
 import httpx
 from typing import Dict, Any, List, Optional
 
@@ -26,6 +27,16 @@ class LTAService:
 
     def __init__(self):
         self.account_key = os.getenv("LTA_DATAMALL_ACCOUNT_KEY", "")
+
+    @staticmethod
+    def _evidence(kind: str, detail: str) -> Dict[str, str]:
+        return {
+            "source": "LTA DataMall",
+            "type": kind,
+            "detail": detail,
+            "observedAt": datetime.now(timezone.utc).isoformat(),
+            "sourceUrl": "https://datamall.lta.gov.sg/content/datamall/en/dynamic-data.html",
+        }
 
     async def get_train_service_alerts(self, replay_mode: bool = False) -> Dict[str, Any]:
         """
@@ -50,10 +61,11 @@ class LTAService:
                         "CreatedDate": "2026-09-18 07:42:00",
                     }
                 ],
+                "_evidence": self._evidence("simulation", "Clearly labeled replay fixture for judge-controlled disruption testing; not a live alert."),
             }
 
         if not self.account_key:
-            return {"Status": 1, "AffectedSegments": [], "Message": [{"Content": "Normal service", "CreatedDate": ""}]}
+            return {"Status": 0, "AffectedSegments": [], "Message": [], "_evidence": self._evidence("reference", "Unavailable: LTA_DATAMALL_ACCOUNT_KEY is not configured. No service-status claim is made.")}
 
         headers = {"AccountKey": self.account_key, "accept": "application/json"}
         async with httpx.AsyncClient() as client:
@@ -65,20 +77,22 @@ class LTAService:
                         "Status": val.get("Status", 1),
                         "AffectedSegments": val.get("AffectedSegments", []),
                         "Message": val.get("Message", []),
+                        "_evidence": self._evidence("live_api", "Live TrainServiceAlerts response."),
                     }
             except Exception:
                 pass
 
-        return {"Status": 1, "AffectedSegments": [], "Message": []}
+        return {"Status": 0, "AffectedSegments": [], "Message": [], "_evidence": self._evidence("reference", "Unavailable: live TrainServiceAlerts request failed. No normal-service claim is made.")}
 
-    async def get_station_crowd_forecast(self, line: str, time_slot: str = "08:30") -> Dict[str, str]:
+    async def get_station_crowd_forecast(self, line: str, time_slot: str = "08:30") -> Dict[str, Any]:
         """
         Queries PCDForecast per station at 30-minute intervals
         """
         crowd_code = CANONICAL_LINE_MAP.get(line, {}).get("crowd", line)
-        crowd_map = {"PE7": "m", "NE17": "h", "CC13": "h", "CC23": "m"}
+        crowd_map: Dict[str, Any] = {}
 
         if not self.account_key:
+            crowd_map["_evidence"] = self._evidence("reference", "Unavailable: LTA_DATAMALL_ACCOUNT_KEY is not configured. No crowd level is inferred.")
             return crowd_map
 
         headers = {"AccountKey": self.account_key, "accept": "application/json"}
@@ -92,9 +106,12 @@ class LTAService:
                     for it in items:
                         if it.get("Station") and it.get("CrowdLevel"):
                             crowd_map[it["Station"]] = it["CrowdLevel"].lower()
+                    crowd_map["_evidence"] = self._evidence("live_api", f"Live PCDForecast response for {crowd_code}; requested slot {time_slot}.")
+                    return crowd_map
             except Exception:
                 pass
 
+        crowd_map["_evidence"] = self._evidence("reference", "Unavailable: live PCDForecast request failed. No crowd level is inferred.")
         return crowd_map
 
     async def get_bus_arrivals(self, bus_stop_code: str) -> List[Dict[str, Any]]:
@@ -102,10 +119,7 @@ class LTAService:
         Queries v3/BusArrival for bus ETA and Load (SEA, SDA, LSD)
         """
         if not self.account_key:
-            return [
-                {"ServiceNo": "85", "Load": "SEA", "EstimatedMinutes": 4, "Type": "DD"},
-                {"ServiceNo": "39", "Load": "SDA", "EstimatedMinutes": 9, "Type": "SD"},
-            ]
+            return []
 
         headers = {"AccountKey": self.account_key, "accept": "application/json"}
         async with httpx.AsyncClient() as client:
@@ -118,9 +132,10 @@ class LTAService:
                     return [
                         {
                             "ServiceNo": s.get("ServiceNo"),
-                            "Load": s.get("NextBus", {}).get("Load", "SEA"),
-                            "EstimatedMinutes": 5,
-                            "Type": s.get("NextBus", {}).get("Type", "SD"),
+                            "Load": s.get("NextBus", {}).get("Load") or None,
+                            "EstimatedMinutes": self._minutes_until(s.get("NextBus", {}).get("EstimatedArrival")),
+                            "Type": s.get("NextBus", {}).get("Type") or None,
+                            "_evidence": self._evidence("live_api", "Live v3 BusArrival NextBus fields; ETA is derived from EstimatedArrival."),
                         }
                         for s in services
                     ]
@@ -133,9 +148,30 @@ class LTAService:
         """
         Queries v4/TrafficSpeedBands for congestion monitoring in Motorcycle Mode
         """
-        return [
-            {"RoadName": "Pan Island Expressway (PIE) Westbound", "SpeedBand": 1, "MinSpeed": 8, "MaxSpeed": 18},
-            {"RoadName": "Bartley Viaduct / Lornie Highway", "SpeedBand": 6, "MinSpeed": 62, "MaxSpeed": 68},
-        ]
+        if not self.account_key:
+            return []
+        headers = {"AccountKey": self.account_key, "accept": "application/json"}
+        async with httpx.AsyncClient() as client:
+            try:
+                res = await client.get(f"{self.BASE_URL}/v4/TrafficSpeedBands", headers=headers, timeout=8.0)
+                if res.status_code == 200:
+                    return [
+                        {**item, "_evidence": self._evidence("live_api", "Live v4 TrafficSpeedBands record.")}
+                        for item in res.json().get("value", [])
+                    ]
+            except Exception:
+                pass
+        return []
+
+    @staticmethod
+    def _minutes_until(value: Any) -> Optional[int]:
+        if not isinstance(value, str) or not value:
+            return None
+        try:
+            arrival = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            now = datetime.now(arrival.tzinfo or timezone.utc)
+            return max(0, round((arrival - now).total_seconds() / 60))
+        except ValueError:
+            return None
 
 lta_service = LTAService()
