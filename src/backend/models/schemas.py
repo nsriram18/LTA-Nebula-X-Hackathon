@@ -2,14 +2,26 @@
 Pydantic Schemas for ClearPath FastAPI Backend
 """
 
-from typing import List, Optional, Literal, Dict, Any
-from pydantic import BaseModel, Field
+from typing import List, Optional, Literal
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 
-class GeoCoordinate(BaseModel):
+
+class APIModel(BaseModel):
+    """Accept Python snake_case internally and expose camelCase to React."""
+
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        serialize_by_alias=True,
+    )
+
+
+class GeoCoordinate(APIModel):
     lat: float
     lng: float
 
-class CommuterProfile(BaseModel):
+class CommuterProfile(APIModel):
     id: str = Field(default="commuter-arjun-01")
     name: str = Field(default="Arjun")
     persona: Literal["arjun", "rachel", "mdm_lim", "custom"] = "arjun"
@@ -27,7 +39,7 @@ class CommuterProfile(BaseModel):
     motorcycle_model: Optional[str] = "Yamaha XSR155 (Manual 6-Speed)"
     minimize_clutch_fatigue: bool = True
 
-class RouteStep(BaseModel):
+class RouteStep(APIModel):
     id: str
     mode: Literal["cycle", "lrt", "mrt", "bus", "walk", "motorcycle", "shuttle"]
     instruction: str
@@ -41,10 +53,12 @@ class RouteStep(BaseModel):
     crowd_level: Optional[Literal["l", "m", "h", "NA"]] = None
     bus_service_no: Optional[str] = None
     bus_load: Optional[Literal["SEA", "SDA", "LSD"]] = None
+    bus_feature: Optional[Literal["WAB", "NORMAL"]] = None
+    bus_type: Optional[Literal["SD", "DD", "BD"]] = None
     disruption_alert: Optional[str] = None
     free_mitigation: Optional[str] = None
 
-class RouteOption(BaseModel):
+class RouteOption(APIModel):
     id: str
     title: str
     subtitle: str
@@ -65,7 +79,7 @@ class RouteOption(BaseModel):
     traffic_stress_score: Optional[int] = None
     weather_risk: Optional[str] = "None"
 
-class ProactiveNotificationPayload(BaseModel):
+class ProactiveNotificationPayload(APIModel):
     id: str
     timestamp: str
     commute_date: str
@@ -82,8 +96,26 @@ class ProactiveNotificationPayload(BaseModel):
     crowd_summary: Optional[str] = None
     free_mitigation_available: Optional[str] = None
 
-class OfflineRouteCache(BaseModel):
+class OfflineRouteCache(APIModel):
     cached_at: str
     active_route: RouteOption
     profile: CommuterProfile
     offline_notes: List[str]
+
+
+class ProactiveEvaluationResponse(APIModel):
+    payload: Optional[ProactiveNotificationPayload] = None
+    routes: List[RouteOption]
+    active_alerts: bool
+    weather_alert: bool
+    profile: CommuterProfile
+
+
+class ProfileSaveResponse(APIModel):
+    status: Literal["success", "error"]
+    profile: CommuterProfile
+
+
+class OfflineCacheSaveResponse(APIModel):
+    status: Literal["cached", "error"]
+    cached_at: str

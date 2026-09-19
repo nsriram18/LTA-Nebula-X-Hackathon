@@ -5,7 +5,7 @@ Firestore database integration, and the 45-minute proactive engine background wo
 """
 
 import os
-from fastapi import FastAPI, BackgroundTasks, Query
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import find_dotenv, load_dotenv
 
@@ -15,7 +15,10 @@ load_dotenv(find_dotenv(usecwd=True))
 
 from models.schemas import (
     CommuterProfile,
+    OfflineCacheSaveResponse,
     ProactiveNotificationPayload,
+    ProactiveEvaluationResponse,
+    ProfileSaveResponse,
     OfflineRouteCache,
 )
 from database.firestore_client import db
@@ -29,11 +32,28 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# CORS configuration
+project_id = os.getenv("GCP_PROJECT_ID", "")
+configured_frontend = os.getenv("APP_URL", "").rstrip("/")
+allowed_origins = {
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+}
+if configured_frontend:
+    allowed_origins.add(configured_frontend)
+if project_id:
+    allowed_origins.update(
+        {
+            f"https://{project_id}.web.app",
+            f"https://{project_id}.firebaseapp.com",
+        }
+    )
+
+# The browser uses bearer-free public API requests, so credentialed CORS is
+# intentionally disabled and only known frontend origins are accepted.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=sorted(allowed_origins),
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -46,14 +66,14 @@ async def health_check():
         "firestore_connected": db.client is not None,
     }
 
-@app.get("/api/profile", response_model=CommuterProfile)
+@app.get("/api/profile", response_model=CommuterProfile, response_model_by_alias=True)
 async def get_profile(commuter_id: str = "commuter-arjun-01"):
     return db.get_commuter_profile(commuter_id)
 
-@app.post("/api/profile")
+@app.post("/api/profile", response_model=ProfileSaveResponse, response_model_by_alias=True)
 async def save_profile(profile: CommuterProfile):
     success = db.save_commuter_profile(profile)
-    return {"status": "success" if success else "error", "profile": profile}
+    return ProfileSaveResponse(status="success" if success else "error", profile=profile)
 
 @app.get("/api/alerts")
 async def get_train_alerts(replay: bool = False):
@@ -79,28 +99,45 @@ async def get_rainfall():
 async def get_traffic_speed_bands():
     return await lta_service.get_traffic_speed_bands()
 
-@app.post("/api/proactive-check")
+@app.post(
+    "/api/proactive-check",
+    response_model=ProactiveEvaluationResponse,
+    response_model_by_alias=True,
+)
 async def run_proactive_check(
     replay_disruption: bool = Query(False),
     simulated_rain: bool = Query(False),
+    simulated_crowd: bool = Query(False),
     commuter_id: str = "commuter-arjun-01",
 ):
     profile = db.get_commuter_profile(commuter_id)
-    notif = await proactive_engine.evaluate_commute(
+    return await proactive_engine.evaluate_commute(
         profile,
         replay_disruption=replay_disruption,
         simulated_rain=simulated_rain,
+        simulated_crowd=simulated_crowd,
     )
-    return {"notification": notif, "profile": profile}
 
-@app.post("/api/offline-cache")
+@app.post(
+    "/api/offline-cache",
+    response_model=OfflineCacheSaveResponse,
+    response_model_by_alias=True,
+)
 async def cache_offline_route(cache: OfflineRouteCache, commuter_id: str = "commuter-arjun-01"):
-    db.cache_offline_route(commuter_id, cache)
-    return {"status": "cached", "cached_at": cache.cached_at}
+    success = db.cache_offline_route(commuter_id, cache)
+    return OfflineCacheSaveResponse(
+        status="cached" if success else "error",
+        cached_at=cache.cached_at,
+    )
 
-@app.get("/api/offline-cache")
+@app.get(
+    "/api/offline-cache",
+    response_model=OfflineRouteCache | None,
+    response_model_by_alias=True,
+)
 async def get_offline_cache(commuter_id: str = "commuter-arjun-01"):
-    return db.get_cached_offline_route(commuter_id) or {}
+    cached = db.get_cached_offline_route(commuter_id)
+    return OfflineRouteCache(**cached) if cached else None
 
 if __name__ == "__main__":
     import uvicorn

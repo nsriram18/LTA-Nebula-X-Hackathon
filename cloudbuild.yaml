@@ -29,7 +29,7 @@ steps:
       - --region=${_REGION}
       - --service-account=${_RUNTIME_SERVICE_ACCOUNT}
       - --port=8080
-      - --set-env-vars=GCP_PROJECT_ID=${PROJECT_ID},FIRESTORE_DATABASE_ID=(default),ENVIRONMENT=production
+      - --set-env-vars=GCP_PROJECT_ID=${PROJECT_ID},FIRESTORE_DATABASE_ID=(default),ENVIRONMENT=production,APP_URL=https://${PROJECT_ID}.web.app
       - --update-secrets=LTA_DATAMALL_ACCOUNT_KEY=clearpath-lta-datamall-account-key:latest,ONEMAP_EMAIL=clearpath-onemap-email:latest,ONEMAP_PASSWORD=clearpath-onemap-password:latest,ONEMAP_API_TOKEN=clearpath-onemap-api-token:latest
       - --project=${PROJECT_ID}
       - --quiet

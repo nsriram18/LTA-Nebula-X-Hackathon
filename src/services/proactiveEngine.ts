@@ -5,7 +5,13 @@
  * and data.gov.sg weather to generate actionable, decisive commuter guidance.
  */
 
-import { CommuterProfile, ProactiveNotificationPayload, RouteOption } from '../types';
+import {
+  CommuterProfile,
+  ProactiveEvaluationResult,
+  ProactiveNotificationPayload,
+  ScenarioOptions,
+} from '../types';
+import { backendApi } from './backendApi';
 import { ltaService } from './ltaService';
 import { weatherService } from './weatherService';
 import { routingEngine } from './routingEngine';
@@ -15,12 +21,20 @@ class ProactiveEngine {
    * Run the proactive evaluation for Arjun's commute
    * Typically scheduled by cron / worker at T - 45 min
    */
-  public async evaluateCommute(profile: CommuterProfile): Promise<{
-    payload: ProactiveNotificationPayload | null;
-    routes: RouteOption[];
-    activeAlerts: boolean;
-    weatherAlert: boolean;
-  }> {
+  public async evaluateCommute(
+    profile: CommuterProfile,
+    options: ScenarioOptions = {
+      replayDisruption: false,
+      simulatedRain: false,
+      simulatedCrowd: false,
+    },
+  ): Promise<ProactiveEvaluationResult> {
+    try {
+      return await backendApi.evaluate(profile.id, options);
+    } catch (error) {
+      console.warn('Backend proactive evaluation unavailable, using offline engine:', error);
+    }
+
     const scheduledTime = profile.scheduledDepartureTime; // e.g. "08:30"
     const alerts = await ltaService.getTrainServiceAlerts();
     const weather = await weatherService.checkCyclingLegRain();
@@ -47,7 +61,7 @@ class ProactiveEngine {
           weatherSummary: 'Rain cell detected across Central Expressway corridor.',
           disruptionSummary: 'High clutch fatigue warning: >80 clutch engagements prevented on bypass route.',
         };
-        return { payload, routes, activeAlerts: false, weatherAlert: true };
+        return { payload, routes, activeAlerts: false, weatherAlert: true, profile };
       }
 
       const payload: ProactiveNotificationPayload = {
@@ -63,7 +77,7 @@ class ProactiveEngine {
         originalRouteId: 'moto-route-pie-heavy',
         suggestedRouteId: 'moto-route-smooth',
       };
-      return { payload, routes, activeAlerts: false, weatherAlert: false };
+      return { payload, routes, activeAlerts: false, weatherAlert: false, profile };
     }
 
     // 1. Train Disruption scenario
@@ -87,7 +101,7 @@ class ProactiveEngine {
         freeMitigationAvailable: freeMitigation,
       };
 
-      return { payload, routes, activeAlerts: true, weatherAlert: hasRain };
+      return { payload, routes, activeAlerts: true, weatherAlert: hasRain, profile };
     }
 
     // 2. Heavy Rain on Cycling Leg scenario
@@ -107,7 +121,7 @@ class ProactiveEngine {
         weatherSummary: weather.advisory,
       };
 
-      return { payload, routes, activeAlerts: false, weatherAlert: true };
+      return { payload, routes, activeAlerts: false, weatherAlert: true, profile };
     }
 
     // 3. High Crowd Density Proactive Recommendation (Arjun has flexible start!)
@@ -129,7 +143,7 @@ class ProactiveEngine {
         crowdSummary: 'Punggol MRT & Damai platform crowd drops 48% after 08:50.',
       };
 
-      return { payload, routes, activeAlerts: false, weatherAlert: false };
+      return { payload, routes, activeAlerts: false, weatherAlert: false, profile };
     }
 
     // Normal Day
@@ -138,6 +152,7 @@ class ProactiveEngine {
       routes,
       activeAlerts: false,
       weatherAlert: false,
+      profile,
     };
   }
 

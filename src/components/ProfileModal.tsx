@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { User, Clock, Bike, Shield, Zap, Database, X, Check } from 'lucide-react';
 import { CommuterProfile } from '../types';
 
@@ -7,6 +7,7 @@ interface ProfileModalProps {
   onClose: () => void;
   profile: CommuterProfile;
   onSaveProfile: (updated: CommuterProfile) => void;
+  syncStatus: 'syncing' | 'synced' | 'offline';
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({
@@ -14,9 +15,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   onClose,
   profile,
   onSaveProfile,
+  syncStatus,
 }) => {
   const [formData, setFormData] = useState<CommuterProfile>({ ...profile });
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) setFormData({ ...profile });
+  }, [isOpen, profile]);
 
   if (!isOpen) return null;
 
@@ -132,9 +138,21 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               <Database className="w-3.5 h-3.5 text-cyan-400" />
               <span>Google Cloud Firestore</span>
             </div>
-            <span className="text-emerald-400 font-semibold flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              Synchronized
+            <span className={`font-semibold flex items-center gap-1 ${
+              syncStatus === 'synced'
+                ? 'text-emerald-400'
+                : syncStatus === 'syncing'
+                  ? 'text-cyan-400'
+                  : 'text-amber-400'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                syncStatus === 'synced'
+                  ? 'bg-emerald-400'
+                  : syncStatus === 'syncing'
+                    ? 'bg-cyan-400 animate-pulse'
+                    : 'bg-amber-400'
+              }`}></span>
+              {syncStatus === 'synced' ? 'Synchronized' : syncStatus === 'syncing' ? 'Synchronizing' : 'Saved locally'}
             </span>
           </div>
         </div>

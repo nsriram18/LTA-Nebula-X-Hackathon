@@ -141,3 +141,17 @@ export interface OfflineRouteCache {
   profile: CommuterProfile;
   offlineNotes: string[];
 }
+
+export interface ScenarioOptions {
+  replayDisruption: boolean;
+  simulatedRain: boolean;
+  simulatedCrowd: boolean;
+}
+
+export interface ProactiveEvaluationResult {
+  payload: ProactiveNotificationPayload | null;
+  routes: RouteOption[];
+  activeAlerts: boolean;
+  weatherAlert: boolean;
+  profile: CommuterProfile;
+}

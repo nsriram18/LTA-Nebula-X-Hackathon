@@ -5,6 +5,7 @@
  */
 
 import { WeatherNowcastArea, RainfallReading } from '../types';
+import { backendApi } from './backendApi';
 
 class WeatherService {
   private isHeavyRainScenario = false;
@@ -33,19 +34,12 @@ class WeatherService {
     }
 
     try {
-      const response = await fetch('https://api-open.data.gov.sg/v2/real-time/api/two-hr-forecast', {
-        headers: { accept: 'application/json' },
-      });
-
-      if (response.ok) {
-        const json = await response.json();
-        const forecasts = json?.data?.items?.[0]?.forecasts || [];
-        if (forecasts.length > 0) {
-          return forecasts.map((f: any) => ({
-            area: f.area,
-            forecast: f.forecast,
-          }));
-        }
+      const forecasts = await backendApi.getNowcast();
+      if (forecasts.length > 0) {
+        return forecasts.map((forecast) => ({
+          area: String(forecast.area || ''),
+          forecast: String(forecast.forecast || 'Fair'),
+        }));
       }
     } catch (err) {
       console.warn('data.gov.sg 2-hour nowcast fetch failed, using fallback:', err);
@@ -88,30 +82,17 @@ class WeatherService {
     }
 
     try {
-      const response = await fetch('https://api-open.data.gov.sg/v2/real-time/api/rainfall', {
-        headers: { accept: 'application/json' },
-      });
-
-      if (response.ok) {
-        const json = await response.json();
-        const stations = json?.data?.stations || [];
-        const readings = json?.data?.items?.[0]?.readings || [];
-
-        const stationMap = new Map<string, any>();
-        stations.forEach((s: any) => stationMap.set(s.id, s));
-
-        return readings.map((r: any) => {
-          const stn = stationMap.get(r.stationId);
-          return {
-            stationId: r.stationId,
-            stationName: stn?.name || r.stationId,
-            valueMm: r.value || 0,
-            coordinates: {
-              lat: stn?.location?.latitude || 1.35,
-              lng: stn?.location?.longitude || 103.82,
-            },
-          };
-        });
+      const readings = await backendApi.getRainfall();
+      if (readings.length > 0) {
+        return readings.map((reading) => ({
+          stationId: String(reading.stationId || ''),
+          stationName: String(reading.stationName || reading.stationId || 'Singapore'),
+          valueMm: Number(reading.valueMm ?? reading.value ?? 0),
+          coordinates: {
+            lat: Number(reading.latitude ?? 1.35),
+            lng: Number(reading.longitude ?? 103.82),
+          },
+        }));
       }
     } catch (e) {
       // Fallback

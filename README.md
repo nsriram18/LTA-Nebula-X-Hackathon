@@ -153,6 +153,26 @@ identity and the `(default)` Firestore database in `us-central1`. LTA and
 OneMap values must be supplied through Secret Manager; they are never included
 in the source upload or browser bundle.
 
+### Frontend-to-Backend Integration
+
+The React application reads the public `VITE_API_BASE_URL` value from
+`.env.production` and sends all live LTA, weather, profile, offline-cache, and
+proactive-evaluation requests to FastAPI. DataMall and OneMap credentials stay
+inside Cloud Run and are never sent to the browser.
+
+FastAPI accepts and returns camelCase JSON so its profile, route, and
+notification payloads match the TypeScript types. Route generation now runs on
+the backend, with the former browser routing engine retained only as an offline
+fallback. Scenario controls are sent to `/api/proactive-check` as explicit
+disruption, rain, and crowd simulation parameters.
+
+For local frontend development, either retain the production API URL or set a
+local override in the ignored `.env` file:
+
+```dotenv
+VITE_API_BASE_URL=http://localhost:8080
+```
+
 ### Continuous Deployment
 
 `cloudbuild.yaml` defines the production backend pipeline. A push to `main`
